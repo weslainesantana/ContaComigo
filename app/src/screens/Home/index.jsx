@@ -1,34 +1,40 @@
-import React from 'react';
+// components/Home.js
+import React, { useEffect, useState } from 'react';
 import { View, Text, Dimensions, StyleSheet } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
+import  api  from '../../services/api';
 
 export function Home() {
-  const contas = {
-    pagar: 10,
-    atrasadas: 10,
-    pagas: 10,
-  };
+  const [contas, setContas] = useState([]);
 
-  const total = contas.pagar + contas.atrasadas + contas.pagas;
+  useEffect(() => {
+    api.get('/accounts')
+      .then((res) => setContas(res.data))
+      .catch((err) => console.error('Erro ao buscar contas:', err));
+  }, []);
+
+  const contasPagar = contas.filter((c) => c.status === 0).length;
+  const contasAtrasadas = contas.filter((c) => c.status === 1).length;
+  const contasPagas = contas.filter((c) => c.status === 2).length;
 
   const chartData = [
     {
       name: 'Pagar',
-      population: contas.pagar,
+      population: contasPagar,
       color: '#FFCE56',
       legendFontColor: '#000',
       legendFontSize: 12,
     },
     {
       name: 'Atrasadas',
-      population: contas.atrasadas,
+      population: contasAtrasadas,
       color: '#FF6384',
       legendFontColor: '#000',
       legendFontSize: 12,
     },
     {
       name: 'Pagas',
-      population: contas.pagas,
+      population: contasPagas,
       color: '#36A2EB',
       legendFontColor: '#000',
       legendFontSize: 12,
@@ -43,9 +49,7 @@ export function Home() {
         data={chartData}
         width={Dimensions.get('window').width - 40}
         height={180}
-        chartConfig={{
-          color: () => '#000',
-        }}
+        chartConfig={{ color: () => '#000' }}
         accessor="population"
         backgroundColor="transparent"
         paddingLeft="15"
@@ -56,15 +60,15 @@ export function Home() {
       <View style={styles.boxContainer}>
         <View style={styles.card}>
           <Text style={styles.label}>Pagar</Text>
-          <Text style={styles.value}>{contas.pagar}</Text>
+          <Text style={styles.value}>{contasPagar}</Text>
         </View>
         <View style={styles.card}>
           <Text style={styles.label}>Atrasadas</Text>
-          <Text style={styles.value}>{contas.atrasadas}</Text>
+          <Text style={styles.value}>{contasAtrasadas}</Text>
         </View>
         <View style={styles.card}>
           <Text style={styles.label}>Pagas</Text>
-          <Text style={styles.value}>{contas.pagas}</Text>
+          <Text style={styles.value}>{contasPagas}</Text>
         </View>
       </View>
     </View>
@@ -81,7 +85,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#2563eb', // Azul
+    color: '#2563eb',
     marginBottom: 20,
   },
   boxContainer: {

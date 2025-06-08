@@ -1,72 +1,66 @@
-import React from 'react';
-import { FlatList, Text, View, StyleSheet, Dimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { FlatList, Text, View, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
-
-const mockData = [
-  {
-    id: '1',
-    nome: 'Energia Elétrica',
-    valor: 120.75,
-    data: '2025-06-01',
-    vencimento: '2025-06-10',
-    tipoGasto: 'fixo',
-    formaPagamento: 'à vista',
-    localidade: 'Residência',
-    coordenadas: { latitude: -23.55052, longitude: -46.633308 }, // São Paulo
-  },
-  {
-    id: '2',
-    nome: 'Internet',
-    valor: 89.99,
-    data: '2025-06-01',
-    vencimento: '2025-06-15',
-    tipoGasto: 'fixo',
-    formaPagamento: 'à vista',
-    localidade: 'Residência',
-    coordenadas: { latitude: -22.9068, longitude: -43.1729 }, // Rio de Janeiro
-  },
-  {
-    id: '3',
-    nome: 'Compra Mercado',
-    valor: 230.5,
-    data: '2025-06-05',
-    vencimento: '2025-06-05',
-    tipoGasto: 'único',
-    formaPagamento: 'parcelado',
-    localidade: 'Supermercado XYZ',
-    coordenadas: { latitude: -25.4284, longitude: -49.2733 }, // Curitiba
-  },
-];
+import api from '../../services/api'; 
 
 export function Accounts() {
+  const [accounts, setAccounts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchAccounts() {
+      try {
+        const response = await api.get('/accounts');
+        setAccounts(response.data);
+      } catch (error) {
+        console.error('Erro ao buscar contas:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchAccounts();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={{ marginTop: 10 }}>Carregando contas...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Contas</Text>
 
       <FlatList
-        data={mockData}
+        data={accounts}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Text style={styles.name}>{item.nome}</Text>
-            <Text style={styles.value}>R$ {item.valor.toFixed(2)}</Text>
+            <Text style={styles.value}>R$ {parseFloat(item.valor).toFixed(2)}</Text>
             <Text style={styles.info}>Tipo: {item.tipoGasto} | {item.formaPagamento}</Text>
             <Text style={styles.info}>Data: {item.data}</Text>
             <Text style={styles.info}>Vencimento: {item.vencimento}</Text>
             <Text style={styles.info}>Local: {item.localidade}</Text>
 
-            <MapView
-              style={styles.map}
-              initialRegion={{
-                ...item.coordenadas,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              }}
-              scrollEnabled={false}
-              zoomEnabled={false}
-            >
-              <Marker coordinate={item.coordenadas} />
-            </MapView>
+            {item.coordenadas && item.coordenadas.latitude && (
+              <MapView
+                style={styles.map}
+                initialRegion={{
+                  ...item.coordenadas,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                }}
+                scrollEnabled={false}
+                zoomEnabled={false}
+              >
+                <Marker coordinate={item.coordenadas} />
+              </MapView>
+            )}
           </View>
         )}
         contentContainerStyle={{ paddingBottom: 20 }}
