@@ -11,22 +11,24 @@ export default function Onboarding() {
       <Text style={styles.emoji}>👋</Text>
 
       <Text variant="headlineLarge" style={styles.title}>
-        Bem-vindo ao ContaComigo
+        Bem-vindo ao <Text style={styles.titleBlue}>ContaComigo</Text>
       </Text>
+
 
       <Text variant="bodyMedium" style={styles.subtitle}>
         Seu app de suporte e acompanhamento personalizado.
       </Text>
 
       <Button
-        mode="contained"
+        mode="outlined"
         onPress={() => navigation.replace("Main")}
         style={styles.button}
-        icon="login"
+        labelStyle={styles.buttonLabel}
         contentStyle={{ flexDirection: "row-reverse" }}
       >
         Entrar
       </Button>
+
     </View>
   );
 }
@@ -55,8 +57,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   button: {
-    backgroundColor: "#1e66fd",
     width: "60%",
     borderRadius: 25,
+    borderWidth: 1.5,
+    borderColor: "#1e66fd",
+    backgroundColor: "transparent", 
   },
+  buttonLabel: {
+    color: "#1e66fd",
+    fontWeight: "bold",
+  },
+    titleBlue: {
+    color: "#1e66fd",
+    fontWeight: "bold",
+  },
+
 });
