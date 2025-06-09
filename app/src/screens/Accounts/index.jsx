@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { 
   FlatList, 
   Text, 
@@ -8,17 +8,20 @@ import {
   Modal, 
   TextInput, 
   ScrollView,
-  ActivityIndicator,
-  Alert
+  Alert,
+  Platform
 } from 'react-native';
+import { ActivityIndicator } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
-import api from '../../services/api'; 
 import { Picker } from '@react-native-picker/picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { format } from 'date-fns';
+import { useAccounts } from '../../contexts/AccountsContext';
 
 export function Accounts() {
-  const [accounts, setAccounts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { accounts, loading, fetchAccounts, addAccount } = useAccounts();
   const [modalVisible, setModalVisible] = useState(false);
+  const { markAccountAsPaid } = useAccounts();
   const [formData, setFormData] = useState({
     nome: '',
     valor: '',
@@ -35,21 +38,46 @@ export function Accounts() {
   });
   const [showMap, setShowMap] = useState(false);
   const [tempCoords, setTempCoords] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showVencimentoPicker, setShowVencimentoPicker] = useState(false);
+  const [currentDateField, setCurrentDateField] = useState(null);
 
   useEffect(() => {
     fetchAccounts();
   }, []);
 
-  async function fetchAccounts() {
-    try {
-      const response = await api.get('/accounts');
-      setAccounts(response.data);
-    } catch (error) {
-      console.error('Erro ao buscar contas:', error);
-    } finally {
-      setLoading(false);
+  const openDatePicker = (field) => {
+    setCurrentDateField(field);
+    if (field === 'data') {
+      setShowDatePicker(true);
+    } else {
+      setShowVencimentoPicker(true);
     }
-  }
+  };
+
+  const handleDateChange = (event, selectedDate) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+      setShowVencimentoPicker(false);
+    }
+
+    if (selectedDate) {
+      const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+      
+      if (currentDateField === 'data') {
+        setFormData({
+          ...formData,
+          data: formattedDate
+        });
+      } else {
+        setFormData({
+          ...formData,
+          vencimento: formattedDate
+        });
+      }
+    }
+  };
 
   const handleInputChange = (name, value) => {
     setFormData({
@@ -57,13 +85,11 @@ export function Accounts() {
       [name]: value
     });
     
-    // Calcular valor da parcela se for parcelado
     if (name === 'qtdParcela' && formData.formaPagamento === 'parcelado') {
       const total = parseFloat(formData.valorTotal) || 0;
       const parcelas = parseInt(value) || 1;
       const valorParcela = (total / parcelas).toFixed(2);
       
-      // Criar objeto de parcelas
       const novasParcelas = {};
       for (let i = 1; i <= parcelas; i++) {
         novasParcelas[`parcela${i}`] = {
@@ -98,43 +124,45 @@ export function Accounts() {
   };
 
   const handleSubmit = async () => {
-    try {
-      setLoading(true);
-      
-      // Preparar os dados conforme a estrutura do JSON
-      const contaData = {
+  setIsSubmitting(true);
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const [year, month, day] = formData.vencimento.split('-').map(Number);
+    const dueDate = new Date(year, month - 1, day);
+    dueDate.setHours(0, 0, 0, 0);
+    
+    // 0 = A pagar, 1 = Atrasada
+    const status = today > dueDate ? 1 : 0;
+
+    const result = await addAccount({
         ...formData,
-        valor: parseFloat(formData.valor),
-        valorTotal: parseFloat(formData.valorTotal),
-        qtdParcela: formData.formaPagamento === 'parcelado' ? parseInt(formData.qtdParcela) : 1,
-        status: 1 // Status padrão
-      };
-      
-      await api.post('/accounts', contaData);
-      await fetchAccounts();
-      setModalVisible(false);
-      Alert.alert('Sucesso', 'Conta adicionada com sucesso!');
-      
-      // Resetar form
-      setFormData({
-        nome: '',
-        valor: '',
-        data: '',
-        vencimento: '',
-        tipoGasto: 'fixo',
-        formaPagamento: 'à vista',
-        localidade: '',
-        coordenadas: null,
-        status: 1,
-        qtdParcela: 1,
-        valorTotal: '',
-        parcelas: {}
+        status: status
       });
-    } catch (error) {
-      console.error('Erro ao adicionar conta:', error);
-      Alert.alert('Erro', 'Não foi possível adicionar a conta');
+      
+      if (result.success) {
+        setModalVisible(false);
+        Alert.alert('Sucesso', 'Conta adicionada com sucesso!');
+        setFormData({
+          nome: '',
+          valor: '',
+          data: '',
+          vencimento: '',
+          tipoGasto: 'fixo',
+          formaPagamento: 'à vista',
+          localidade: '',
+          coordenadas: null,
+          status: 0,
+          qtdParcela: 1,
+          valorTotal: '',
+          parcelas: {}
+        });
+      } else {
+        Alert.alert('Erro', 'Não foi possível adicionar a conta');
+      }
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -146,6 +174,54 @@ export function Accounts() {
       </View>
     );
   }
+
+  const getAccountStatus = (account) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Remove a parte de hora para comparar apenas a data
+    
+    // Se a conta já está paga, retorna "Paga"
+    if (account.status === 2) {
+      return { status: 'Paga', color: '#10b981' };
+    }
+
+    // Verifica se account.vencimento existe e é uma string válida
+    if (!account.vencimento || typeof account.vencimento !== 'string') {
+      return { status: 'Data inválida', color: '#ef4444' };
+    }
+
+    let dueDate;
+    try {
+      // Converte a string de vencimento para Date
+      const [year, month, day] = account.vencimento.split('-').map(Number);
+      dueDate = new Date(year, month - 1, day);
+      dueDate.setHours(0, 0, 0, 0); // Remove a parte de hora
+    } catch (e) {
+      return { status: 'Data inválida', color: '#ef4444' };
+    }
+
+    // Compara as datas
+    if (account.status === 1) {
+      return { status: 'Atrasada', color: '#ef4444' };
+    } else if (today > dueDate) {
+      return { status: 'Atrasada', color: '#ef4444' };
+    } else {
+      return { status: 'A pagar', color: '#3b82f6' };
+    }
+  };
+
+  const handleMarkAsPaid = async (accountId) => {
+    try {
+      const result = await markAccountAsPaid(accountId);
+      
+      if (result.success) {
+        Alert.alert('Sucesso', 'Conta marcada como paga!');
+      } else {
+        Alert.alert('Erro', result.error || 'Não foi possível marcar a conta como paga');
+      }
+    } catch (error) {
+      Alert.alert('Erro', 'Ocorreu um erro ao processar sua solicitação');
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -162,31 +238,48 @@ export function Accounts() {
       <FlatList
         data={accounts}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.name}>{item.nome}</Text>
-            <Text style={styles.value}>R$ {parseFloat(item.valor).toFixed(2)}</Text>
-            <Text style={styles.info}>Tipo: {item.tipoGasto} | {item.formaPagamento}</Text>
-            <Text style={styles.info}>Data: {item.data}</Text>
-            <Text style={styles.info}>Vencimento: {item.vencimento}</Text>
-            <Text style={styles.info}>Local: {item.localidade}</Text>
+        renderItem={({ item }) => {
+          const statusInfo = getAccountStatus(item);
+          return (
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.name}>{item.nome}</Text>
+                <View style={[styles.statusBadge, { backgroundColor: statusInfo.color }]}>
+                  <Text style={styles.statusText}>{statusInfo.status}</Text>
+                </View>
+              </View>
+              <Text style={styles.value}>R$ {parseFloat(item.valor).toFixed(2)}</Text>
+              <Text style={styles.info}>Tipo: {item.tipoGasto} | {item.formaPagamento}</Text>
+              <Text style={styles.info}>Data: {item.data}</Text>
+              <Text style={styles.info}>Vencimento: {item.vencimento}</Text>
+              <Text style={styles.info}>Local: {item.localidade}</Text>
 
-            {item.coordenadas && item.coordenadas.latitude && (
-              <MapView
-                style={styles.map}
-                initialRegion={{
-                  ...item.coordenadas,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                }}
-                scrollEnabled={false}
-                zoomEnabled={false}
-              >
-                <Marker coordinate={item.coordenadas} />
-              </MapView>
-            )}
-          </View>
-        )}
+              {item.coordenadas && item.coordenadas.latitude && (
+                <MapView
+                  style={styles.map}
+                  initialRegion={{
+                    ...item.coordenadas,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                  }}
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                >
+                  <Marker coordinate={item.coordenadas} />
+                </MapView>
+              )}
+
+              {item.status !== 2 && (  // Mostra o botão apenas se a conta não estiver paga
+                <TouchableOpacity 
+                  style={styles.payButton}
+                  onPress={() => handleMarkAsPaid(item.id)}
+                >
+                  <Text style={styles.payButtonText}>Marcar como paga</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        }}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
 
@@ -313,22 +406,38 @@ export function Accounts() {
 
           <View style={styles.formGroup}>
             <Text style={styles.label}>Data</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.data}
-              onChangeText={(text) => handleInputChange('data', text)}
-              placeholder="AAAA-MM-DD"
-            />
+            <TouchableOpacity 
+              style={styles.input} 
+              onPress={() => openDatePicker('data')}
+            >
+              <Text>{formData.data || 'Selecione a data'}</Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={formData.data ? new Date(formData.data) : new Date()}
+                mode="date"
+                display="default"
+                onChange={handleDateChange}
+              />
+            )}
           </View>
 
           <View style={styles.formGroup}>
             <Text style={styles.label}>Vencimento</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.vencimento}
-              onChangeText={(text) => handleInputChange('vencimento', text)}
-              placeholder="AAAA-MM-DD"
-            />
+            <TouchableOpacity 
+              style={styles.input} 
+              onPress={() => openDatePicker('vencimento')}
+            >
+              <Text>{formData.vencimento || 'Selecione o vencimento'}</Text>
+            </TouchableOpacity>
+            {showVencimentoPicker && (
+              <DateTimePicker
+                value={formData.vencimento ? new Date(formData.vencimento) : new Date()}
+                mode="date"
+                display="default"
+                onChange={handleDateChange}
+              />
+            )}
           </View>
 
           <View style={styles.formGroup}>
@@ -347,13 +456,13 @@ export function Accounts() {
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Número de parcelas</Text>
                 <Picker
-                selectedValue={formData.qtdParcela}
-                style={styles.picker}
-                onValueChange={(itemValue) => handleInputChange('qtdParcela', itemValue)}
+                  selectedValue={formData.qtdParcela}
+                  style={styles.picker}
+                  onValueChange={(itemValue) => handleInputChange('qtdParcela', itemValue)}
                 >
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(num => (
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(num => (
                     <Picker.Item key={num} label={`${num} parcela(s)`} value={num} />
-                ))}
+                  ))}
                 </Picker>
               </View>
 
@@ -386,9 +495,9 @@ export function Accounts() {
             <TouchableOpacity 
               style={[styles.button, styles.submitButton]}
               onPress={handleSubmit}
-              disabled={loading}
+              disabled={isSubmitting}
             >
-              {loading ? (
+              {isSubmitting ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.buttonText}>Enviar</Text>
@@ -490,6 +599,8 @@ const styles = StyleSheet.create({
     padding: 10,
     fontSize: 16,
     backgroundColor: '#f9f9f9',
+    justifyContent: 'center',
+    minHeight: 40,
   },
   locationContainer: {
     flexDirection: 'row',
@@ -588,4 +699,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#444',
   },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  statusBadge: {
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+  },
+  statusText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  payButton: {
+    marginTop: 10,
+    backgroundColor: '#10b981',
+    padding: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  payButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  }
 });

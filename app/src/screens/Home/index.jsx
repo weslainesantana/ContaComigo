@@ -3,9 +3,14 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Dimensions, StyleSheet } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 import  api  from '../../services/api';
+import { useAccounts } from '../../contexts/AccountsContext';
+import { ActivityIndicator } from 'react-native-paper';
 
 export function Home() {
   const [contas, setContas] = useState([]);
+  const { accounts, loading } = useAccounts();
+
+
 
   useEffect(() => {
     api.get('/accounts')
@@ -13,9 +18,18 @@ export function Home() {
       .catch((err) => console.error('Erro ao buscar contas:', err));
   }, []);
 
-  const contasPagar = contas.filter((c) => c.status === 0).length;
-  const contasAtrasadas = contas.filter((c) => c.status === 1).length;
-  const contasPagas = contas.filter((c) => c.status === 2).length;
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={{ marginTop: 10 }}>Carregando contas...</Text>
+      </View>
+    );
+  }
+
+  const contasPagar = accounts.filter((c) => c.status === 0).length;
+  const contasAtrasadas = accounts.filter((c) => c.status === 1).length;
+  const contasPagas = accounts.filter((c) => c.status === 2).length;
 
   const chartData = [
     {
