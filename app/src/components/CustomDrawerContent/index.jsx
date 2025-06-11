@@ -14,7 +14,7 @@ export function CustomDrawerContent({ navigation }) {
           navigation.closeDrawer();
         }}
       >
-        <Text style={{ color: "#1e66fd",marginBottom: 16 }}>/Home</Text>
+        <Text style={{ color: "#1e66fd",marginBottom: 16 }}>Home</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -23,7 +23,7 @@ export function CustomDrawerContent({ navigation }) {
           navigation.closeDrawer();
         }}
       >
-        <Text style={{ color: "#1e66fd",marginBottom: 16 }}>/Contas</Text>
+        <Text style={{ color: "#1e66fd",marginBottom: 16 }}>Contas</Text>
       </TouchableOpacity>
     </DrawerContentScrollView>
   );

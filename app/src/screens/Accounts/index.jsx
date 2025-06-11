@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { 
-  FlatList, 
-  Text, 
-  View, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Modal, 
-  TextInput, 
+import {
+  FlatList,
+  Text,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  TextInput,
   ScrollView,
   Alert,
   Platform
@@ -24,7 +24,6 @@ export function Accounts() {
   const { markAccountAsPaid } = useAccounts();
   const [formData, setFormData] = useState({
     nome: '',
-    valor: '',
     data: '',
     vencimento: '',
     tipoGasto: 'fixo',
@@ -64,7 +63,7 @@ export function Accounts() {
 
     if (selectedDate) {
       const formattedDate = format(selectedDate, 'yyyy-MM-dd');
-      
+
       if (currentDateField === 'data') {
         setFormData({
           ...formData,
@@ -84,12 +83,12 @@ export function Accounts() {
       ...formData,
       [name]: value
     });
-    
+
     if (name === 'qtdParcela' && formData.formaPagamento === 'parcelado') {
       const total = parseFloat(formData.valorTotal) || 0;
       const parcelas = parseInt(value) || 1;
       const valorParcela = (total / parcelas).toFixed(2);
-      
+
       const novasParcelas = {};
       for (let i = 1; i <= parcelas; i++) {
         novasParcelas[`parcela${i}`] = {
@@ -98,7 +97,7 @@ export function Accounts() {
           vencimento: formData.vencimento
         };
       }
-      
+
       setFormData(prev => ({
         ...prev,
         parcelas: novasParcelas
@@ -124,29 +123,28 @@ export function Accounts() {
   };
 
   const handleSubmit = async () => {
-  setIsSubmitting(true);
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const [year, month, day] = formData.vencimento.split('-').map(Number);
-    const dueDate = new Date(year, month - 1, day);
-    dueDate.setHours(0, 0, 0, 0);
-    
-    // 0 = A pagar, 1 = Atrasada
-    const status = today > dueDate ? 1 : 0;
+    setIsSubmitting(true);
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-    const result = await addAccount({
+      const [year, month, day] = formData.vencimento.split('-').map(Number);
+      const dueDate = new Date(year, month - 1, day);
+      dueDate.setHours(0, 0, 0, 0);
+
+      // 0 = A pagar, 1 = Atrasada
+      const status = today > dueDate ? 1 : 0;
+
+      const result = await addAccount({
         ...formData,
         status: status
       });
-      
+
       if (result.success) {
         setModalVisible(false);
         Alert.alert('Sucesso', 'Conta adicionada com sucesso!');
         setFormData({
           nome: '',
-          valor: '',
           data: '',
           vencimento: '',
           tipoGasto: 'fixo',
@@ -178,7 +176,7 @@ export function Accounts() {
   const getAccountStatus = (account) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Remove a parte de hora para comparar apenas a data
-    
+
     // Se a conta já está paga, retorna "Paga"
     if (account.status === 2) {
       return { status: 'Paga', color: '#10b981' };
@@ -212,7 +210,7 @@ export function Accounts() {
   const handleMarkAsPaid = async (accountId) => {
     try {
       const result = await markAccountAsPaid(accountId);
-      
+
       if (result.success) {
         Alert.alert('Sucesso', 'Conta marcada como paga!');
       } else {
@@ -227,7 +225,7 @@ export function Accounts() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Contas</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.addButton}
           onPress={() => setModalVisible(true)}
         >
@@ -248,11 +246,20 @@ export function Accounts() {
                   <Text style={styles.statusText}>{statusInfo.status}</Text>
                 </View>
               </View>
-              <Text style={styles.value}>R$ {parseFloat(item.valor).toFixed(2)}</Text>
+              <Text style={styles.value}>R$ {parseFloat(item.valorTotal).toFixed(2)}</Text>
               <Text style={styles.info}>Tipo: {item.tipoGasto} | {item.formaPagamento}</Text>
+                            {item.qtdParcela > 1 ? (
+                <Text style={styles.info}>
+                  Parcelado em {item.qtdParcela}x de R$ {(parseFloat(item.valorTotal) / item.qtdParcela).toFixed(2)}
+                </Text>
+              ) : (
+                <Text style={styles.info}>
+                  Pagamento à vista
+                </Text>
+              )}
               <Text style={styles.info}>Data: {item.data}</Text>
               <Text style={styles.info}>Vencimento: {item.vencimento}</Text>
-              <Text style={styles.info}>Local: {item.localidade}</Text>
+              {/* <Text style={styles.info}>Local: {item.localidade}</Text> */}
 
               {item.coordenadas && item.coordenadas.latitude && (
                 <MapView
@@ -270,7 +277,7 @@ export function Accounts() {
               )}
 
               {item.status !== 2 && (  // Mostra o botão apenas se a conta não estiver paga
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.payButton}
                   onPress={() => handleMarkAsPaid(item.id)}
                 >
@@ -291,17 +298,17 @@ export function Accounts() {
       >
         <ScrollView style={styles.modalContainer}>
           <Text style={styles.modalTitle}>Adicionar Nova Conta</Text>
-          
+
           <View style={styles.formGroup}>
             <Text style={styles.label}>Tipo de Gasto</Text>
             <View style={styles.radioGroup}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.radioButton, formData.tipoGasto === 'fixo' && styles.radioButtonSelected]}
                 onPress={() => handleInputChange('tipoGasto', 'fixo')}
               >
                 <Text style={[styles.radioText, formData.tipoGasto === 'fixo' && styles.radioTextSelected]}>Fixo</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.radioButton, formData.tipoGasto === 'variavel' && styles.radioButtonSelected]}
                 onPress={() => handleInputChange('tipoGasto', 'variavel')}
               >
@@ -319,7 +326,7 @@ export function Accounts() {
                 onChangeText={(text) => handleInputChange('localidade', text)}
                 placeholder="Digite a localidade"
               />
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.locationButton}
                 onPress={handleLocationSelect}
               >
@@ -348,13 +355,13 @@ export function Accounts() {
                 {tempCoords && <Marker coordinate={tempCoords} />}
               </MapView>
               <View style={styles.mapButtons}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.button, styles.cancelButton]}
                   onPress={() => setShowMap(false)}
                 >
                   <Text style={styles.buttonText}>Cancelar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.button, styles.submitButton]}
                   onPress={confirmLocation}
                   disabled={!tempCoords}
@@ -366,15 +373,26 @@ export function Accounts() {
           )}
 
           <View style={styles.formGroup}>
+            <Text style={styles.label}>Valor</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.valorTotal}
+              onChangeText={(text) => handleInputChange('valorTotal', text)}
+              placeholder="Valor da conta"
+              keyboardType="numeric"
+            />
+          </View>
+
+          <View style={styles.formGroup}>
             <Text style={styles.label}>Tipo de Pagamento</Text>
             <View style={styles.radioGroup}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.radioButton, formData.formaPagamento === 'à vista' && styles.radioButtonSelected]}
                 onPress={() => handleInputChange('formaPagamento', 'à vista')}
               >
                 <Text style={[styles.radioText, formData.formaPagamento === 'à vista' && styles.radioTextSelected]}>À vista</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.radioButton, formData.formaPagamento === 'parcelado' && styles.radioButtonSelected]}
                 onPress={() => handleInputChange('formaPagamento', 'parcelado')}
               >
@@ -394,20 +412,9 @@ export function Accounts() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Valor</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.valor}
-              onChangeText={(text) => handleInputChange('valor', text)}
-              placeholder="Valor"
-              keyboardType="numeric"
-            />
-          </View>
-
-          <View style={styles.formGroup}>
             <Text style={styles.label}>Data</Text>
-            <TouchableOpacity 
-              style={styles.input} 
+            <TouchableOpacity
+              style={styles.input}
               onPress={() => openDatePicker('data')}
             >
               <Text>{formData.data || 'Selecione a data'}</Text>
@@ -424,8 +431,8 @@ export function Accounts() {
 
           <View style={styles.formGroup}>
             <Text style={styles.label}>Vencimento</Text>
-            <TouchableOpacity 
-              style={styles.input} 
+            <TouchableOpacity
+              style={styles.input}
               onPress={() => openDatePicker('vencimento')}
             >
               <Text>{formData.vencimento || 'Selecione o vencimento'}</Text>
@@ -438,17 +445,6 @@ export function Accounts() {
                 onChange={handleDateChange}
               />
             )}
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Valor total</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.valorTotal}
-              onChangeText={(text) => handleInputChange('valorTotal', text)}
-              placeholder="Valor total"
-              keyboardType="numeric"
-            />
           </View>
 
           {formData.formaPagamento === 'parcelado' && (
@@ -482,7 +478,7 @@ export function Accounts() {
           )}
 
           <View style={styles.buttonGroup}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.button, styles.cancelButton]}
               onPress={() => {
                 setModalVisible(false);
@@ -492,7 +488,7 @@ export function Accounts() {
               <Text style={styles.buttonText}>Voltar</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.button, styles.submitButton]}
               onPress={handleSubmit}
               disabled={isSubmitting}
