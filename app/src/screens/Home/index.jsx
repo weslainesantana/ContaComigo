@@ -1,16 +1,13 @@
-// components/Home.js
 import React, { useEffect, useState } from 'react';
 import { View, Text, Dimensions, StyleSheet } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
-import  api  from '../../services/api';
+import api from '../../services/api';
 import { useAccounts } from '../../contexts/AccountsContext';
 import { ActivityIndicator } from 'react-native-paper';
 
 export function Home() {
   const [contas, setContas] = useState([]);
   const { accounts, loading } = useAccounts();
-
-
 
   useEffect(() => {
     api.get('/accounts')
@@ -20,7 +17,7 @@ export function Home() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+      <View style={[styles.container, styles.center]}>
         <ActivityIndicator size="large" color="#2563eb" />
         <Text style={{ marginTop: 10 }}>Carregando contas...</Text>
       </View>
@@ -35,54 +32,57 @@ export function Home() {
     {
       name: 'Pagar',
       population: contasPagar,
-      color: '#FFCE56',
-      legendFontColor: '#000',
-      legendFontSize: 12,
+      color: '#facc15',
+      legendFontColor: '#555',
+      legendFontSize: 14,
     },
     {
       name: 'Atrasadas',
       population: contasAtrasadas,
-      color: '#FF6384',
-      legendFontColor: '#000',
-      legendFontSize: 12,
+      color: '#f43f5e',
+      legendFontColor: '#555',
+      legendFontSize: 14,
     },
     {
       name: 'Pagas',
       population: contasPagas,
-      color: '#36A2EB',
-      legendFontColor: '#000',
-      legendFontSize: 12,
+      color: '#3b82f6',
+      legendFontColor: '#555',
+      legendFontSize: 14,
     },
   ];
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Resumo geral</Text>
+      <View style={styles.content}>
+        <Text style={styles.title}>Resumo geral</Text>
 
-      <PieChart
-        data={chartData}
-        width={Dimensions.get('window').width - 40}
-        height={180}
-        chartConfig={{ color: () => '#000' }}
-        accessor="population"
-        backgroundColor="transparent"
-        paddingLeft="15"
-        center={[10, 0]}
-        absolute
-      />
+        <PieChart
+          data={chartData}
+          width={Dimensions.get('window').width - 60}
+          height={200}
+          chartConfig={{ color: () => '#000' }}
+          accessor="population"
+          backgroundColor="transparent"
+          paddingLeft="20"
+          center={[5, 0]}
+          absolute
+          style={styles.chart}
+        />
 
-      <View style={styles.boxContainer}>
-        <View style={styles.card}>
-          <Text style={styles.label}>Pagar</Text>
-          <Text style={styles.value}>{contasPagar}</Text>
-        </View>
-        <View style={styles.card}>
-          <Text style={styles.label}>Atrasadas</Text>
-          <Text style={styles.value}>{contasAtrasadas}</Text>
-        </View>
-        <View style={styles.card}>
-          <Text style={styles.label}>Pagas</Text>
-          <Text style={styles.value}>{contasPagas}</Text>
+        <View style={styles.boxContainer}>
+          <View style={[styles.card, styles.cardPagar]}>
+            <Text style={styles.label}>Pagar</Text>
+            <Text style={styles.value}>{contasPagar}</Text>
+          </View>
+          <View style={[styles.card, styles.cardAtrasadas]}>
+            <Text style={styles.label}>Atrasadas</Text>
+            <Text style={styles.value}>{contasAtrasadas}</Text>
+          </View>
+          <View style={[styles.card, styles.cardPagas]}>
+            <Text style={styles.label}>Pagas</Text>
+            <Text style={styles.value}>{contasPagas}</Text>
+          </View>
         </View>
       </View>
     </View>
@@ -92,42 +92,70 @@ export function Home() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 60,
+    backgroundColor: '#f9fafb',
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f1f1f1',
+    paddingHorizontal: 20,
+  },
+  center: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  content: {
+    width: '100%',
+    maxWidth: 500,
+    alignItems: 'center',
+    paddingVertical: 30,
   },
   title: {
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '700',
     color: '#2563eb',
-    marginBottom: 20,
+    marginBottom: 15,
+  },
+  chart: {
+    marginBottom: 30,
   },
   boxContainer: {
     flexDirection: 'row',
-    marginTop: 30,
-    gap: 10,
+    justifyContent: 'space-between',
+    width: '100%',
   },
   card: {
     backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 12,
+    paddingVertical: 18,
+    paddingHorizontal: 12,
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 4,
     alignItems: 'center',
-    minWidth: 80,
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  cardPagar: {
+    borderBottomWidth: 4,
+    borderBottomColor: '#facc15',
+  },
+  cardAtrasadas: {
+    borderBottomWidth: 4,
+    borderBottomColor: '#f43f5e',
+  },
+  cardPagas: {
+    borderBottomWidth: 4,
+    borderBottomColor: '#3b82f6',
   },
   label: {
     color: '#2563eb',
     fontWeight: '600',
-    fontSize: 14,
+    fontSize: 15,
     marginBottom: 5,
   },
   value: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#111827',
   },
 });
