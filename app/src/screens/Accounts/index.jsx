@@ -19,11 +19,25 @@ import { format } from 'date-fns';
 import { useAccounts } from '../../contexts/AccountsContext';
 
 export function Accounts() {
-  const { accounts, loading, fetchAccounts, addAccount } = useAccounts();
+  const { 
+    accounts, 
+    loading, 
+    fetchAccounts, 
+    addAccount, 
+    markAccountAsPaid,
+    updateAccount,
+    deleteAccount
+  } = useAccounts();
+  
   const [modalVisible, setModalVisible] = useState(false);
-  const { markAccountAsPaid } = useAccounts();
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [currentAccount, setCurrentAccount] = useState(null);
+  const [accountToDelete, setAccountToDelete] = useState(null);
+  
   const [formData, setFormData] = useState({
     nome: '',
+    valor: '',
     data: '',
     vencimento: '',
     tipoGasto: 'fixo',
@@ -35,6 +49,7 @@ export function Accounts() {
     valorTotal: '',
     parcelas: {}
   });
+  
   const [showMap, setShowMap] = useState(false);
   const [tempCoords, setTempCoords] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -132,7 +147,6 @@ export function Accounts() {
       const dueDate = new Date(year, month - 1, day);
       dueDate.setHours(0, 0, 0, 0);
 
-      // 0 = A pagar, 1 = Atrasada
       const status = today > dueDate ? 1 : 0;
 
       const result = await addAccount({
@@ -143,19 +157,7 @@ export function Accounts() {
       if (result.success) {
         setModalVisible(false);
         Alert.alert('Sucesso', 'Conta adicionada com sucesso!');
-        setFormData({
-          nome: '',
-          data: '',
-          vencimento: '',
-          tipoGasto: 'fixo',
-          formaPagamento: 'à vista',
-          localidade: '',
-          coordenadas: null,
-          status: 0,
-          qtdParcela: 1,
-          valorTotal: '',
-          parcelas: {}
-        });
+        resetForm();
       } else {
         Alert.alert('Erro', 'Não foi possível adicionar a conta');
       }
@@ -164,40 +166,91 @@ export function Accounts() {
     }
   };
 
-  if (loading && !modalVisible) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={{ marginTop: 10 }}>Carregando contas...</Text>
-      </View>
-    );
-  }
+  const resetForm = () => {
+    setFormData({
+      nome: '',
+      valor: '',
+      data: '',
+      vencimento: '',
+      tipoGasto: 'fixo',
+      formaPagamento: 'à vista',
+      localidade: '',
+      coordenadas: null,
+      status: 1,
+      qtdParcela: 1,
+      valorTotal: '',
+      parcelas: {}
+    });
+  };
+
+  const handleEdit = (account) => {
+    setCurrentAccount(account);
+    setFormData({
+      nome: account.nome,
+      valor: account.valor,
+      data: account.data,
+      vencimento: account.vencimento,
+      tipoGasto: account.tipoGasto,
+      formaPagamento: account.formaPagamento,
+      localidade: account.localidade,
+      coordenadas: account.coordenadas,
+      status: account.status,
+      qtdParcela: account.qtdParcela,
+      valorTotal: account.valorTotal,
+      parcelas: account.parcelas || {}
+    });
+    setEditModalVisible(true);
+  };
+
+  const handleUpdateAccount = async () => {
+    setIsSubmitting(true);
+    try {
+      const result = await updateAccount(currentAccount.id, formData);
+      
+      if (result.success) {
+        setEditModalVisible(false);
+        Alert.alert('Sucesso', 'Conta atualizada com sucesso!');
+      } else {
+        Alert.alert('Erro', 'Não foi possível atualizar a conta');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    const result = await deleteAccount(accountToDelete);
+    
+    if (result.success) {
+      Alert.alert('Sucesso', 'Conta removida com sucesso!');
+    } else {
+      Alert.alert('Erro', result.error || 'Não foi possível remover a conta');
+    }
+    
+    setDeleteConfirmVisible(false);
+  };
 
   const getAccountStatus = (account) => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Remove a parte de hora para comparar apenas a data
+    today.setHours(0, 0, 0, 0);
 
-    // Se a conta já está paga, retorna "Paga"
     if (account.status === 2) {
       return { status: 'Paga', color: '#10b981' };
     }
 
-    // Verifica se account.vencimento existe e é uma string válida
     if (!account.vencimento || typeof account.vencimento !== 'string') {
       return { status: 'Data inválida', color: '#ef4444' };
     }
 
     let dueDate;
     try {
-      // Converte a string de vencimento para Date
       const [year, month, day] = account.vencimento.split('-').map(Number);
       dueDate = new Date(year, month - 1, day);
-      dueDate.setHours(0, 0, 0, 0); // Remove a parte de hora
+      dueDate.setHours(0, 0, 0, 0);
     } catch (e) {
       return { status: 'Data inválida', color: '#ef4444' };
     }
 
-    // Compara as datas
     if (account.status === 1) {
       return { status: 'Atrasada', color: '#ef4444' };
     } else if (today > dueDate) {
@@ -220,6 +273,15 @@ export function Accounts() {
       Alert.alert('Erro', 'Ocorreu um erro ao processar sua solicitação');
     }
   };
+
+  if (loading && !modalVisible && !editModalVisible) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={{ marginTop: 10 }}>Carregando contas...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -248,7 +310,7 @@ export function Accounts() {
               </View>
               <Text style={styles.value}>R$ {parseFloat(item.valorTotal).toFixed(2)}</Text>
               <Text style={styles.info}>Tipo: {item.tipoGasto} | {item.formaPagamento}</Text>
-                            {item.qtdParcela > 1 ? (
+              {item.qtdParcela > 1 ? (
                 <Text style={styles.info}>
                   Parcelado em {item.qtdParcela}x de R$ {(parseFloat(item.valorTotal) / item.qtdParcela).toFixed(2)}
                 </Text>
@@ -259,7 +321,6 @@ export function Accounts() {
               )}
               <Text style={styles.info}>Data: {item.data}</Text>
               <Text style={styles.info}>Vencimento: {item.vencimento}</Text>
-              {/* <Text style={styles.info}>Local: {item.localidade}</Text> */}
 
               {item.coordenadas && item.coordenadas.latitude && (
                 <MapView
@@ -276,7 +337,27 @@ export function Accounts() {
                 </MapView>
               )}
 
-              {item.status !== 2 && (  // Mostra o botão apenas se a conta não estiver paga
+              <View style={styles.cardActions}>
+                {item.status !== 2 && (
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={() => handleEdit(item)}
+                  >
+                    <Text style={styles.editButtonText}>Editar</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => {
+                    setAccountToDelete(item.id);
+                    setDeleteConfirmVisible(true);
+                  }}
+                >
+                  <Text style={styles.deleteButtonText}>Excluir</Text>
+                </TouchableOpacity>
+              </View>
+
+              {item.status !== 2 && (
                 <TouchableOpacity
                   style={styles.payButton}
                   onPress={() => handleMarkAsPaid(item.id)}
@@ -290,6 +371,7 @@ export function Accounts() {
         contentContainerStyle={{ paddingBottom: 20 }}
       />
 
+      {/* Modal de Adição */}
       <Modal
         animationType="slide"
         transparent={false}
@@ -300,42 +382,133 @@ export function Accounts() {
           <Text style={styles.modalTitle}>Adicionar Nova Conta</Text>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Tipo de Gasto</Text>
-            <View style={styles.radioGroup}>
-              <TouchableOpacity
-                style={[styles.radioButton, formData.tipoGasto === 'fixo' && styles.radioButtonSelected]}
-                onPress={() => handleInputChange('tipoGasto', 'fixo')}
-              >
-                <Text style={[styles.radioText, formData.tipoGasto === 'fixo' && styles.radioTextSelected]}>Fixo</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.radioButton, formData.tipoGasto === 'variavel' && styles.radioButtonSelected]}
-                onPress={() => handleInputChange('tipoGasto', 'variavel')}
-              >
-                <Text style={[styles.radioText, formData.tipoGasto === 'variavel' && styles.radioTextSelected]}>Variável</Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.label}>Nome da Conta</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.nome}
+              onChangeText={(text) => handleInputChange('nome', text)}
+              placeholder="Ex: Aluguel, Luz, Internet"
+            />
           </View>
 
           <View style={styles.formGroup}>
+            <Text style={styles.label}>Valor Total</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.valorTotal}
+              onChangeText={(text) => handleInputChange('valorTotal', text)}
+              placeholder="R$ 0,00"
+              keyboardType="numeric"
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Data</Text>
+            <TouchableOpacity onPress={() => openDatePicker('data')}>
+              <TextInput
+                style={styles.input}
+                value={formData.data}
+                placeholder="YYYY-MM-DD"
+                editable={false}
+              />
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={formData.data ? new Date(formData.data) : new Date()}
+                mode="date"
+                display="default"
+                onChange={handleDateChange}
+              />
+            )}
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Data de Vencimento</Text>
+            <TouchableOpacity onPress={() => openDatePicker('vencimento')}>
+              <TextInput
+                style={styles.input}
+                value={formData.vencimento}
+                placeholder="YYYY-MM-DD"
+                editable={false}
+              />
+            </TouchableOpacity>
+            {showVencimentoPicker && (
+              <DateTimePicker
+                value={formData.vencimento ? new Date(formData.vencimento) : new Date()}
+                mode="date"
+                display="default"
+                onChange={handleDateChange}
+              />
+            )}
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Tipo de Gasto</Text>
+            <Picker
+              selectedValue={formData.tipoGasto}
+              style={styles.picker}
+              onValueChange={(itemValue) => handleInputChange('tipoGasto', itemValue)}
+            >
+              <Picker.Item label="Fixo" value="fixo" />
+              <Picker.Item label="Variável" value="variável" />
+              <Picker.Item label="Ocasional" value="ocasional" />
+            </Picker>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Forma de Pagamento</Text>
+            <Picker
+              selectedValue={formData.formaPagamento}
+              style={styles.picker}
+              onValueChange={(itemValue) => handleInputChange('formaPagamento', itemValue)}
+            >
+              <Picker.Item label="À vista" value="à vista" />
+              <Picker.Item label="Parcelado" value="parcelado" />
+            </Picker>
+          </View>
+
+          {formData.formaPagamento === 'parcelado' && (
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Quantidade de Parcelas</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.qtdParcela.toString()}
+                onChangeText={(text) => handleInputChange('qtdParcela', text)}
+                placeholder="Número de parcelas"
+                keyboardType="numeric"
+              />
+            </View>
+          )}
+
+          <View style={styles.formGroup}>
             <Text style={styles.label}>Localidade</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.localidade}
+              onChangeText={(text) => handleInputChange('localidade', text)}
+              placeholder="Onde foi realizado o gasto?"
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Localização (opcional)</Text>
             <View style={styles.locationContainer}>
               <TextInput
                 style={[styles.input, { flex: 1 }]}
-                value={formData.localidade}
-                onChangeText={(text) => handleInputChange('localidade', text)}
-                placeholder="Digite a localidade"
+                value={formData.coordenadas ? `${formData.coordenadas.latitude.toFixed(4)}, ${formData.coordenadas.longitude.toFixed(4)}` : ''}
+                placeholder="Selecione no mapa"
+                editable={false}
               />
               <TouchableOpacity
                 style={styles.locationButton}
                 onPress={handleLocationSelect}
               >
-                <Text style={styles.locationButtonText}>📍</Text>
+                <Text style={styles.locationButtonText}>🗺️</Text>
               </TouchableOpacity>
             </View>
             {formData.coordenadas && (
               <Text style={styles.coordsText}>
-                Localização: {formData.coordenadas.latitude.toFixed(4)}, {formData.coordenadas.longitude.toFixed(4)}
+                Lat: {formData.coordenadas.latitude.toFixed(4)}, Long: {formData.coordenadas.longitude.toFixed(4)}
               </Text>
             )}
           </View>
@@ -345,8 +518,8 @@ export function Accounts() {
               <MapView
                 style={styles.mapPicker}
                 initialRegion={{
-                  latitude: -23.5505,
-                  longitude: -46.6333,
+                  latitude: formData.coordenadas?.latitude || -23.5505,
+                  longitude: formData.coordenadas?.longitude || -46.6333,
                   latitudeDelta: 0.0922,
                   longitudeDelta: 0.0421,
                 }}
@@ -364,117 +537,11 @@ export function Accounts() {
                 <TouchableOpacity
                   style={[styles.button, styles.submitButton]}
                   onPress={confirmLocation}
-                  disabled={!tempCoords}
                 >
                   <Text style={styles.buttonText}>Confirmar</Text>
                 </TouchableOpacity>
               </View>
             </View>
-          )}
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Valor</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.valorTotal}
-              onChangeText={(text) => handleInputChange('valorTotal', text)}
-              placeholder="Valor da conta"
-              keyboardType="numeric"
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Tipo de Pagamento</Text>
-            <View style={styles.radioGroup}>
-              <TouchableOpacity
-                style={[styles.radioButton, formData.formaPagamento === 'à vista' && styles.radioButtonSelected]}
-                onPress={() => handleInputChange('formaPagamento', 'à vista')}
-              >
-                <Text style={[styles.radioText, formData.formaPagamento === 'à vista' && styles.radioTextSelected]}>À vista</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.radioButton, formData.formaPagamento === 'parcelado' && styles.radioButtonSelected]}
-                onPress={() => handleInputChange('formaPagamento', 'parcelado')}
-              >
-                <Text style={[styles.radioText, formData.formaPagamento === 'parcelado' && styles.radioTextSelected]}>Parcelado</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Nome da Conta</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.nome}
-              onChangeText={(text) => handleInputChange('nome', text)}
-              placeholder="Nome da conta"
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Data</Text>
-            <TouchableOpacity
-              style={styles.input}
-              onPress={() => openDatePicker('data')}
-            >
-              <Text>{formData.data || 'Selecione a data'}</Text>
-            </TouchableOpacity>
-            {showDatePicker && (
-              <DateTimePicker
-                value={formData.data ? new Date(formData.data) : new Date()}
-                mode="date"
-                display="default"
-                onChange={handleDateChange}
-              />
-            )}
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Vencimento</Text>
-            <TouchableOpacity
-              style={styles.input}
-              onPress={() => openDatePicker('vencimento')}
-            >
-              <Text>{formData.vencimento || 'Selecione o vencimento'}</Text>
-            </TouchableOpacity>
-            {showVencimentoPicker && (
-              <DateTimePicker
-                value={formData.vencimento ? new Date(formData.vencimento) : new Date()}
-                mode="date"
-                display="default"
-                onChange={handleDateChange}
-              />
-            )}
-          </View>
-
-          {formData.formaPagamento === 'parcelado' && (
-            <>
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Número de parcelas</Text>
-                <Picker
-                  selectedValue={formData.qtdParcela}
-                  style={styles.picker}
-                  onValueChange={(itemValue) => handleInputChange('qtdParcela', itemValue)}
-                >
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(num => (
-                    <Picker.Item key={num} label={`${num} parcela(s)`} value={num} />
-                  ))}
-                </Picker>
-              </View>
-
-              {formData.qtdParcela > 1 && (
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Parcelas</Text>
-                  {Object.entries(formData.parcelas).map(([key, parcela]) => (
-                    <View key={key} style={styles.parcelaItem}>
-                      <Text style={styles.parcelaText}>
-                        {key}: R$ {parcela.valor} (Vencimento: {parcela.vencimento})
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </>
           )}
 
           <View style={styles.buttonGroup}>
@@ -501,6 +568,229 @@ export function Accounts() {
             </TouchableOpacity>
           </View>
         </ScrollView>
+      </Modal>
+
+      {/* Modal de Edição */}
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={editModalVisible}
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <ScrollView style={styles.modalContainer}>
+          <Text style={styles.modalTitle}>Editar Conta</Text>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Nome da Conta</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.nome}
+              onChangeText={(text) => handleInputChange('nome', text)}
+              placeholder="Ex: Aluguel, Luz, Internet"
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Valor Total</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.valorTotal}
+              onChangeText={(text) => handleInputChange('valorTotal', text)}
+              placeholder="R$ 0,00"
+              keyboardType="numeric"
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Data</Text>
+            <TouchableOpacity onPress={() => openDatePicker('data')}>
+              <TextInput
+                style={styles.input}
+                value={formData.data}
+                placeholder="YYYY-MM-DD"
+                editable={false}
+              />
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={formData.data ? new Date(formData.data) : new Date()}
+                mode="date"
+                display="default"
+                onChange={handleDateChange}
+              />
+            )}
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Data de Vencimento</Text>
+            <TouchableOpacity onPress={() => openDatePicker('vencimento')}>
+              <TextInput
+                style={styles.input}
+                value={formData.vencimento}
+                placeholder="YYYY-MM-DD"
+                editable={false}
+              />
+            </TouchableOpacity>
+            {showVencimentoPicker && (
+              <DateTimePicker
+                value={formData.vencimento ? new Date(formData.vencimento) : new Date()}
+                mode="date"
+                display="default"
+                onChange={handleDateChange}
+              />
+            )}
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Tipo de Gasto</Text>
+            <Picker
+              selectedValue={formData.tipoGasto}
+              style={styles.picker}
+              onValueChange={(itemValue) => handleInputChange('tipoGasto', itemValue)}
+            >
+              <Picker.Item label="Fixo" value="fixo" />
+              <Picker.Item label="Variável" value="variável" />
+              <Picker.Item label="Ocasional" value="ocasional" />
+            </Picker>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Forma de Pagamento</Text>
+            <Picker
+              selectedValue={formData.formaPagamento}
+              style={styles.picker}
+              onValueChange={(itemValue) => handleInputChange('formaPagamento', itemValue)}
+            >
+              <Picker.Item label="À vista" value="à vista" />
+              <Picker.Item label="Parcelado" value="parcelado" />
+            </Picker>
+          </View>
+
+          {formData.formaPagamento === 'parcelado' && (
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Quantidade de Parcelas</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.qtdParcela.toString()}
+                onChangeText={(text) => handleInputChange('qtdParcela', text)}
+                placeholder="Número de parcelas"
+                keyboardType="numeric"
+              />
+            </View>
+          )}
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Localidade</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.localidade}
+              onChangeText={(text) => handleInputChange('localidade', text)}
+              placeholder="Onde foi realizado o gasto?"
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Localização (opcional)</Text>
+            <View style={styles.locationContainer}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                value={formData.coordenadas ? `${formData.coordenadas.latitude.toFixed(4)}, ${formData.coordenadas.longitude.toFixed(4)}` : ''}
+                placeholder="Selecione no mapa"
+                editable={false}
+              />
+              <TouchableOpacity
+                style={styles.locationButton}
+                onPress={handleLocationSelect}
+              >
+                <Text style={styles.locationButtonText}>🗺️</Text>
+              </TouchableOpacity>
+            </View>
+            {formData.coordenadas && (
+              <Text style={styles.coordsText}>
+                Lat: {formData.coordenadas.latitude.toFixed(4)}, Long: {formData.coordenadas.longitude.toFixed(4)}
+              </Text>
+            )}
+          </View>
+
+          {showMap && (
+            <View style={styles.mapContainer}>
+              <MapView
+                style={styles.mapPicker}
+                initialRegion={{
+                  latitude: formData.coordenadas?.latitude || -23.5505,
+                  longitude: formData.coordenadas?.longitude || -46.6333,
+                  latitudeDelta: 0.0922,
+                  longitudeDelta: 0.0421,
+                }}
+                onPress={handleMapPress}
+              >
+                {tempCoords && <Marker coordinate={tempCoords} />}
+              </MapView>
+              <View style={styles.mapButtons}>
+                <TouchableOpacity
+                  style={[styles.button, styles.cancelButton]}
+                  onPress={() => setShowMap(false)}
+                >
+                  <Text style={styles.buttonText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.button, styles.submitButton]}
+                  onPress={confirmLocation}
+                >
+                  <Text style={styles.buttonText}>Confirmar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          <View style={styles.buttonGroup}>
+            <TouchableOpacity
+              style={[styles.button, styles.cancelButton]}
+              onPress={() => setEditModalVisible(false)}
+            >
+              <Text style={styles.buttonText}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.submitButton]}
+              onPress={handleUpdateAccount}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Salvar Alterações</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </Modal>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={deleteConfirmVisible}
+        onRequestClose={() => setDeleteConfirmVisible(false)}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalText}>Tem certeza que deseja excluir esta conta?</Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setDeleteConfirmVisible(false)}
+              >
+                <Text style={styles.modalButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.deleteButton]}
+                onPress={confirmDelete}
+              >
+                <Text style={styles.modalButtonText}>Excluir</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -675,7 +965,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   cancelButton: {
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#9E9E9E',
   },
   submitButton: {
     backgroundColor: '#2563eb',
@@ -721,5 +1011,63 @@ const styles = StyleSheet.create({
   payButtonText: {
     color: '#fff',
     fontWeight: 'bold',
-  }
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalView: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    width: '80%',
+  },
+  modalText: {
+    marginBottom: 15,
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalButton: {
+    padding: 10,
+    borderRadius: 5,
+    width: '45%',
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  deleteButton: {
+    backgroundColor: '#ef4444',
+  },
+  cardActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 10,
+  },
+  editButton: {
+    backgroundColor: '#3b82f6',
+    padding: 8,
+    borderRadius: 6,
+    marginRight: 10,
+  },
+  editButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  deleteButton: {
+    backgroundColor: '#ef4444',
+    padding: 8,
+    borderRadius: 6,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
 });

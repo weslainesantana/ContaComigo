@@ -1,8 +1,6 @@
-// contexts/AccountsContext.js
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import api from '../services/api';
 
-// Definindo constantes para os status (recomendado para evitar "magic numbers")
 const STATUS = {
   PENDING: 0,    // A pagar
   OVERDUE: 1,    // Atrasada
@@ -44,7 +42,6 @@ export const AccountsProvider = ({ children }) => {
     }
   };
 
-  // Função corrigida para marcar conta como paga
   const markAccountAsPaid = async (accountId) => {
     try {
       setLoading(true);
@@ -53,7 +50,6 @@ export const AccountsProvider = ({ children }) => {
         dataPagamento: new Date().toISOString().split('T')[0]
       });
       
-      // Atualiza o estado local imediatamente para melhor UX
       setAccounts(prev => prev.map(account => 
         account.id === accountId ? {
           ...account,
@@ -65,6 +61,40 @@ export const AccountsProvider = ({ children }) => {
       return { success: true, data: response.data };
     } catch (err) {
       console.error('Erro ao marcar conta como paga:', err);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateAccount = async (accountId, updatedData) => {
+    try {
+      setLoading(true);
+      const response = await api.put(`/accounts/${accountId}`, updatedData);
+      
+      setAccounts(prev => prev.map(account => 
+        account.id === accountId ? { ...account, ...updatedData } : account
+      ));
+      
+      return { success: true, data: response.data };
+    } catch (err) {
+      console.error('Erro ao atualizar conta:', err);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteAccount = async (accountId) => {
+    try {
+      setLoading(true);
+      await api.delete(`/accounts/${accountId}`);
+      
+      setAccounts(prev => prev.filter(account => account.id !== accountId));
+      
+      return { success: true };
+    } catch (err) {
+      console.error('Erro ao deletar conta:', err);
       return { success: false, error: err.message };
     } finally {
       setLoading(false);
@@ -83,7 +113,9 @@ export const AccountsProvider = ({ children }) => {
         error, 
         fetchAccounts, 
         addAccount,
-        markAccountAsPaid
+        markAccountAsPaid,
+        updateAccount,
+        deleteAccount
       }}
     >
       {children}
