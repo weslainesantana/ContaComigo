@@ -28,7 +28,7 @@ Aplicativo mobile desenvolvido com **React Native** para auxiliar no controle fi
 
    ```bash
    git clone https://github.com/weslainesantana/ContaComigo.git
-   cd ContaComigo
+   cd ContaComigo/app
    ```
 
 2. Instale as dependências:
