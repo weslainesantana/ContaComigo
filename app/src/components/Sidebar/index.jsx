@@ -1,6 +1,7 @@
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import { Home } from "../../screens/Home";
 import { Accounts } from "../../screens/Accounts";
+import Login from "../../screens/Login_CreateAccount/Login";
 import { CustomDrawerContent } from "../../components/CustomDrawerContent";
 import { Ionicons } from "@expo/vector-icons";
 import { TouchableOpacity } from "react-native";
@@ -33,6 +34,7 @@ export function Sidebar() {
     >
       <Drawer.Screen name="Home" component={Home} />
       <Drawer.Screen name="Accounts" component={Accounts} />
+      <Drawer.Screen name="Login" component={Login} />
     </Drawer.Navigator>
   );
 }

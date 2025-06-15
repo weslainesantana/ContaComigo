@@ -4,7 +4,7 @@ import { Text, TouchableOpacity } from "react-native";
 export function CustomDrawerContent({ navigation }) {
   return (
     <DrawerContentScrollView style={{ padding: 16 }}>
-      <Text style={{ fontSize: 16, fontWeight: "bold", color: "#1e66fd",marginBottom: 24 }}>
+      <Text style={{ fontSize: 16, fontWeight: "bold", color: "#1e66fd", marginBottom: 24 }}>
         ContaComigo
       </Text>
 
@@ -14,7 +14,7 @@ export function CustomDrawerContent({ navigation }) {
           navigation.closeDrawer();
         }}
       >
-        <Text style={{ color: "#1e66fd",marginBottom: 16 }}>Home</Text>
+        <Text style={{ color: "#1e66fd", marginBottom: 16 }}>Home</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -23,7 +23,16 @@ export function CustomDrawerContent({ navigation }) {
           navigation.closeDrawer();
         }}
       >
-        <Text style={{ color: "#1e66fd",marginBottom: 16 }}>Contas</Text>
+        <Text style={{ color: "#1e66fd", marginBottom: 16 }}>Contas</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => {
+          navigation.navigate("Login");
+          navigation.closeDrawer();
+        }}
+      >
+        <Text style={{ color: "#1e66fd", marginBottom: 16 }}>Login</Text>
       </TouchableOpacity>
     </DrawerContentScrollView>
   );
