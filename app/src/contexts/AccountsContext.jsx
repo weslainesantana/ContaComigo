@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import api from '../services/api';
+import { useGame, XP_EVENTS, ACHIEVEMENTS } from './GameContext';
 
 const STATUS = {
   PENDING: 0,    // A pagar
@@ -13,6 +14,7 @@ export const AccountsProvider = ({ children }) => {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { addXp, unlockAchievement } = useGame();
 
   const fetchAccounts = async () => {
     try {
@@ -20,6 +22,8 @@ export const AccountsProvider = ({ children }) => {
       const response = await api.get('/accounts');
       setAccounts(response.data);
       setError(null);
+      
+      checkAchievements(response.data);
     } catch (err) {
       setError(err.message);
       console.error('Erro ao buscar contas:', err);
@@ -28,11 +32,79 @@ export const AccountsProvider = ({ children }) => {
     }
   };
 
+  const checkAchievements = (accountsList) => {
+    const paidAccounts = accountsList.filter(a => a.status === STATUS.PAID);
+    
+    // Verificar primeiro pagamento
+    if (paidAccounts.length >= 1) {
+      unlockAchievement(ACHIEVEMENTS.FIRST_BLOOD);
+    }
+    
+    // Verificar conquista de adicionar contas
+    if (accountsList.length >= 10) {
+      unlockAchievement(ACHIEVEMENTS.ACCOUNT_MANAGER);
+    }
+    
+    // Verificar sequência de pagamentos em dia
+    checkOnTimeStreak(paidAccounts);
+    
+    // Verificar pagamento antecipado
+    const earlyPayments = paidAccounts.filter(account => {
+      if (!account.dataPagamento || !account.vencimento) return false;
+      
+      const paymentDate = new Date(account.dataPagamento);
+      const dueDate = new Date(account.vencimento);
+      const daysBefore = (dueDate - paymentDate) / (1000 * 60 * 60 * 24);
+      
+      return daysBefore >= 5;
+    });
+    
+    if (earlyPayments.length > 0) {
+      unlockAchievement(ACHIEVEMENTS.EARLY_BIRD);
+    }
+  };
+
+  const checkOnTimeStreak = (paidAccounts) => {
+    const sortedAccounts = [...paidAccounts]
+      .sort((a, b) => new Date(b.dataPagamento) - new Date(a.dataPagamento));
+    
+    let streak = 0;
+    for (const account of sortedAccounts) {
+      if (!account.dataPagamento || !account.vencimento) continue;
+      
+      const paymentDate = new Date(account.dataPagamento);
+      const dueDate = new Date(account.vencimento);
+      
+      if (paymentDate <= dueDate) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+    
+    if (streak >= 3) {
+      unlockAchievement(ACHIEVEMENTS.ON_TIME_STREAK_3);
+    }
+    
+    if (streak >= 10) {
+      unlockAchievement(ACHIEVEMENTS.ON_TIME_STREAK_10);
+    }
+  };
+
   const addAccount = async (accountData) => {
     try {
       setLoading(true);
       const response = await api.post('/accounts', accountData);
       setAccounts(prev => [...prev, response.data]);
+      
+      // Gamificação - Adicionar XP por criar conta
+      addXp(XP_EVENTS.ADD_ACCOUNT);
+      
+      // Verificar conquista de adicionar contas
+      if (accounts.length + 1 >= 10) {
+        unlockAchievement(ACHIEVEMENTS.ACCOUNT_MANAGER);
+      }
+      
       return { success: true, data: response.data };
     } catch (err) {
       console.error('Erro ao adicionar conta:', err);
@@ -45,18 +117,53 @@ export const AccountsProvider = ({ children }) => {
   const markAccountAsPaid = async (accountId) => {
     try {
       setLoading(true);
+      const account = accounts.find(a => a.id === accountId);
+      
+      if (!account) {
+        throw new Error('Conta não encontrada');
+      }
+      
+      // Verificar se está pagando antecipado
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const dueDate = new Date(account.vencimento);
+      dueDate.setHours(0, 0, 0, 0);
+      
+      const daysBeforeDue = Math.floor((dueDate - today) / (1000 * 60 * 60 * 24));
+      
+      // Gamificação - XP baseado no tempo de pagamento
+      if (daysBeforeDue >= 5) {
+        addXp(XP_EVENTS.PAY_EARLY);
+        unlockAchievement(ACHIEVEMENTS.EARLY_BIRD);
+      } else if (daysBeforeDue >= 0) {
+        addXp(XP_EVENTS.PAY_ON_TIME);
+      }
+      
+      // Verificar conquista de primeiro pagamento
+      const paidAccounts = accounts.filter(a => a.status === STATUS.PAID).length;
+      if (paidAccounts === 0) {
+        unlockAchievement(ACHIEVEMENTS.FIRST_BLOOD);
+      }
+      
       const response = await api.patch(`/accounts/${accountId}`, { 
         status: STATUS.PAID,
         dataPagamento: new Date().toISOString().split('T')[0]
       });
       
-      setAccounts(prev => prev.map(account => 
-        account.id === accountId ? {
-          ...account,
+      // Atualizar lista de contas
+      const updatedAccounts = accounts.map(acc => 
+        acc.id === accountId ? { 
+          ...acc, 
           status: STATUS.PAID,
           dataPagamento: new Date().toISOString().split('T')[0]
-        } : account
-      ));
+        } : acc
+      );
+      
+      setAccounts(updatedAccounts);
+      
+      // Verificar outras conquistas após pagamento
+      checkOnTimeStreak(updatedAccounts.filter(a => a.status === STATUS.PAID));
       
       return { success: true, data: response.data };
     } catch (err) {
@@ -91,6 +198,9 @@ export const AccountsProvider = ({ children }) => {
       await api.delete(`/accounts/${accountId}`);
       
       setAccounts(prev => prev.filter(account => account.id !== accountId));
+      
+      // Gamificação - Penalidade por deletar conta
+      addXp(XP_EVENTS.DELETE_ACCOUNT);
       
       return { success: true };
     } catch (err) {

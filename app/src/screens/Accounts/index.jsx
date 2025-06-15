@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FlatList,
   Text,
@@ -9,14 +9,15 @@ import {
   TextInput,
   ScrollView,
   Alert,
-  Platform
+  Platform,
+  ActivityIndicator
 } from 'react-native';
-import { ActivityIndicator } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
-import { useAccounts } from '../../contexts/AccountsContext';
+import { useGamifiedAccounts } from '../../contexts/useGamifiedAccounts';
+import { GameStatus } from '../../components/GameStatus';
 
 export function Accounts() {
   const { 
@@ -27,14 +28,14 @@ export function Accounts() {
     markAccountAsPaid,
     updateAccount,
     deleteAccount
-  } = useAccounts();
+  } = useGamifiedAccounts();
   
   const [modalVisible, setModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  
   const [currentAccount, setCurrentAccount] = useState(null);
   const [accountToDelete, setAccountToDelete] = useState(null);
-  
   const [formData, setFormData] = useState({
     nome: '',
     valor: '',
@@ -44,7 +45,7 @@ export function Accounts() {
     formaPagamento: 'à vista',
     localidade: '',
     coordenadas: null,
-    status: 1,
+    status: 0,
     qtdParcela: 1,
     valorTotal: '',
     parcelas: {}
@@ -63,11 +64,7 @@ export function Accounts() {
 
   const openDatePicker = (field) => {
     setCurrentDateField(field);
-    if (field === 'data') {
-      setShowDatePicker(true);
-    } else {
-      setShowVencimentoPicker(true);
-    }
+    field === 'data' ? setShowDatePicker(true) : setShowVencimentoPicker(true);
   };
 
   const handleDateChange = (event, selectedDate) => {
@@ -78,18 +75,10 @@ export function Accounts() {
 
     if (selectedDate) {
       const formattedDate = format(selectedDate, 'yyyy-MM-dd');
-
-      if (currentDateField === 'data') {
-        setFormData({
-          ...formData,
-          data: formattedDate
-        });
-      } else {
-        setFormData({
-          ...formData,
-          vencimento: formattedDate
-        });
-      }
+      setFormData({
+        ...formData,
+        [currentDateField]: formattedDate
+      });
     }
   };
 
@@ -99,6 +88,7 @@ export function Accounts() {
       [name]: value
     });
 
+    // Cálculo automático das parcelas
     if (name === 'qtdParcela' && formData.formaPagamento === 'parcelado') {
       const total = parseFloat(formData.valorTotal) || 0;
       const parcelas = parseInt(value) || 1;
@@ -166,6 +156,48 @@ export function Accounts() {
     }
   };
 
+  const handleUpdateAccount = async () => {
+    setIsSubmitting(true);
+    try {
+      const result = await updateAccount(currentAccount.id, formData);
+      
+      if (result.success) {
+        setEditModalVisible(false);
+        Alert.alert('Sucesso', 'Conta atualizada com sucesso!');
+      } else {
+        Alert.alert('Erro', 'Não foi possível atualizar a conta');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleMarkAsPaid = async (accountId) => {
+    try {
+      const result = await markAccountAsPaid(accountId);
+
+      if (result.success) {
+        Alert.alert('Sucesso', 'Conta marcada como paga!');
+      } else {
+        Alert.alert('Erro', result.error || 'Não foi possível marcar a conta como paga');
+      }
+    } catch (error) {
+      Alert.alert('Erro', 'Ocorreu um erro ao processar sua solicitação');
+    }
+  };
+
+  const confirmDelete = async () => {
+    const result = await deleteAccount(accountToDelete);
+    
+    if (result.success) {
+      Alert.alert('Sucesso', 'Conta removida com sucesso!');
+    } else {
+      Alert.alert('Erro', result.error || 'Não foi possível remover a conta');
+    }
+    
+    setDeleteConfirmVisible(false);
+  };
+
   const resetForm = () => {
     setFormData({
       nome: '',
@@ -176,7 +208,7 @@ export function Accounts() {
       formaPagamento: 'à vista',
       localidade: '',
       coordenadas: null,
-      status: 1,
+      status: 0,
       qtdParcela: 1,
       valorTotal: '',
       parcelas: {}
@@ -200,34 +232,6 @@ export function Accounts() {
       parcelas: account.parcelas || {}
     });
     setEditModalVisible(true);
-  };
-
-  const handleUpdateAccount = async () => {
-    setIsSubmitting(true);
-    try {
-      const result = await updateAccount(currentAccount.id, formData);
-      
-      if (result.success) {
-        setEditModalVisible(false);
-        Alert.alert('Sucesso', 'Conta atualizada com sucesso!');
-      } else {
-        Alert.alert('Erro', 'Não foi possível atualizar a conta');
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const confirmDelete = async () => {
-    const result = await deleteAccount(accountToDelete);
-    
-    if (result.success) {
-      Alert.alert('Sucesso', 'Conta removida com sucesso!');
-    } else {
-      Alert.alert('Erro', result.error || 'Não foi possível remover a conta');
-    }
-    
-    setDeleteConfirmVisible(false);
   };
 
   const getAccountStatus = (account) => {
@@ -260,20 +264,6 @@ export function Accounts() {
     }
   };
 
-  const handleMarkAsPaid = async (accountId) => {
-    try {
-      const result = await markAccountAsPaid(accountId);
-
-      if (result.success) {
-        Alert.alert('Sucesso', 'Conta marcada como paga!');
-      } else {
-        Alert.alert('Erro', result.error || 'Não foi possível marcar a conta como paga');
-      }
-    } catch (error) {
-      Alert.alert('Erro', 'Ocorreu um erro ao processar sua solicitação');
-    }
-  };
-
   if (loading && !modalVisible && !editModalVisible) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -285,6 +275,9 @@ export function Accounts() {
 
   return (
     <View style={styles.container}>
+      {/* Barra de status do jogo */}
+      <GameStatus />
+      
       <View style={styles.header}>
         <Text style={styles.title}>Contas</Text>
         <TouchableOpacity

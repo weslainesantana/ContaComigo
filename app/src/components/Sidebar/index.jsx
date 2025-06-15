@@ -7,7 +7,6 @@ import { TouchableOpacity } from "react-native";
 
 const Drawer = createDrawerNavigator();
 
-// Componente do botão de menu
 export function MenuButton({ navigation }) {
   return (
     <TouchableOpacity
