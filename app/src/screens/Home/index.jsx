@@ -4,6 +4,7 @@ import { PieChart } from 'react-native-chart-kit';
 import api from '../../services/api';
 import { useAccounts } from '../../contexts/AccountsContext';
 import { ActivityIndicator } from 'react-native-paper';
+import { GameStatus } from '../../components/GameStatus';
 
 export function Home() {
   const [contas, setContas] = useState([]);
@@ -53,6 +54,7 @@ export function Home() {
   ];
 
   return (
+    <><GameStatus />
     <View style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>Resumo geral</Text>
@@ -67,8 +69,7 @@ export function Home() {
           paddingLeft="20"
           center={[5, 0]}
           absolute
-          style={styles.chart}
-        />
+          style={styles.chart} />
 
         <View style={styles.boxContainer}>
           <View style={[styles.card, styles.cardPagar]}>
@@ -85,7 +86,7 @@ export function Home() {
           </View>
         </View>
       </View>
-    </View>
+    </View></>
   );
 }
 
@@ -93,8 +94,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f9fafb',
-    justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 40,
     paddingHorizontal: 20,
   },
   center: {
@@ -157,5 +158,8 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#111827',
+  },
+  container_game: {
+
   },
 });

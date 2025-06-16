@@ -275,8 +275,6 @@ export function Accounts() {
 
   return (
     <View style={styles.container}>
-      {/* Barra de status do jogo */}
-      <GameStatus />
       
       <View style={styles.header}>
         <Text style={styles.title}>Contas</Text>

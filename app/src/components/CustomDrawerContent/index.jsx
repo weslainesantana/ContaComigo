@@ -25,15 +25,6 @@ export function CustomDrawerContent({ navigation }) {
       >
         <Text style={{ color: "#1e66fd", marginBottom: 16 }}>Contas</Text>
       </TouchableOpacity>
-
-      <TouchableOpacity
-        onPress={() => {
-          navigation.navigate("Login");
-          navigation.closeDrawer();
-        }}
-      >
-        <Text style={{ color: "#1e66fd", marginBottom: 16 }}>Login</Text>
-      </TouchableOpacity>
     </DrawerContentScrollView>
   );
 }

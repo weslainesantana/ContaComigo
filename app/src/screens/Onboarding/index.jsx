@@ -21,14 +21,31 @@ export default function Onboarding() {
 
       <Button
         mode="outlined"
-        onPress={() => navigation.replace("Main")}
-        style={styles.button}
-        labelStyle={styles.buttonLabel}
+        onPress={() => navigation.replace("TelaLogin")}
+        style={styles.button_enter}
+        labelStyle={styles.label_enter}
         contentStyle={{ flexDirection: "row-reverse" }}
       >
         Entrar
       </Button>
-
+      <Button
+        mode="outlined"
+        onPress={() => navigation.replace("TelaCadastro")}
+        style={styles.button_create}
+        labelStyle={styles.buttonLabel}
+        contentStyle={{ flexDirection: "row-reverse" }}
+      >
+        Criar Conta
+      </Button>
+      <Button
+        mode="outlined"
+        onPress={() => navigation.replace("Main")}
+        style={styles.button_enter}
+        labelStyle={styles.label_enter}
+        contentStyle={{ flexDirection: "row-reverse" }}
+      >
+        Provisorio - MAIN
+      </Button>
     </View>
   );
 }
@@ -56,18 +73,31 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 10,
   },
-  button: {
+  button_enter: {
     width: "60%",
     borderRadius: 25,
     borderWidth: 1.5,
     borderColor: "#1e66fd",
-    backgroundColor: "transparent", 
+    backgroundColor: "#1e66fd",
+    marginTop: 16,
+  },
+  button_create: {
+    width: "60%",
+    borderRadius: 25,
+    borderWidth: 1.5,
+    borderColor: "#1e66fd",
+    backgroundColor: "transparent",
+    marginTop: 16,
+  },
+  label_enter: {
+    color: "#ffff",
+    fontWeight: "bold",
   },
   buttonLabel: {
     color: "#1e66fd",
     fontWeight: "bold",
   },
-    titleBlue: {
+  titleBlue: {
     color: "#1e66fd",
     fontWeight: "bold",
   },

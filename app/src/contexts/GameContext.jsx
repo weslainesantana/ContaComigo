@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
 export const useGame = () => {
   const context = useContext(GameContext);
   if (!context) {
-    throw new Error('useGame must be used within a GameProvider');
+    throw new Error('Erro');
   }
   return context;
 };
