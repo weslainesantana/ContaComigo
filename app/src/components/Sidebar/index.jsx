@@ -5,8 +5,10 @@ import Login from "../../screens/Login_CreateAccount/Login";
 import { CustomDrawerContent } from "../../components/CustomDrawerContent";
 import { Ionicons } from "@expo/vector-icons";
 import { TouchableOpacity } from "react-native";
+import { Dimensions } from "react-native";
 
 const Drawer = createDrawerNavigator();
+const screenWidth = Dimensions.get("window").width;
 
 export function MenuButton({ navigation }) {
   return (
@@ -28,7 +30,7 @@ export function Sidebar() {
         headerLeft: () => <MenuButton navigation={navigation} />,
         headerTitleAlign: "center",
         drawerStyle: {
-          width: 160,
+          width: screenWidth * 0.5, //Agpra esta pegando metade da tela
         },
       })}
     >

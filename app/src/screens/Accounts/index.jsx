@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import * as Location from 'expo-location';
 import {
   FlatList,
   Text,
@@ -20,20 +21,37 @@ import { useGamifiedAccounts } from '../../contexts/useGamifiedAccounts';
 import { GameStatus } from '../../components/GameStatus';
 
 export function Accounts() {
-  const { 
-    accounts, 
-    loading, 
-    fetchAccounts, 
-    addAccount, 
+  const {
+    accounts,
+    loading,
+    fetchAccounts,
+    addAccount,
     markAccountAsPaid,
     updateAccount,
     deleteAccount
   } = useGamifiedAccounts();
-  
+
   const [modalVisible, setModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
-  
+  const getCurrentLocation = async () => {
+    // Solicita permissão
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permissão negada', 'Permita o acesso à localização para continuar.');
+      return;
+    }
+
+    // Pega localização atual
+    let location = await Location.getCurrentPositionAsync({});
+    const { latitude, longitude } = location.coords;
+
+    // Atualiza no seu estado
+    setFormData(prev => ({
+      ...prev,
+      coordenadas: { latitude, longitude }
+    }));
+  };
   const [currentAccount, setCurrentAccount] = useState(null);
   const [accountToDelete, setAccountToDelete] = useState(null);
   const [formData, setFormData] = useState({
@@ -50,7 +68,7 @@ export function Accounts() {
     valorTotal: '',
     parcelas: {}
   });
-  
+
   const [showMap, setShowMap] = useState(false);
   const [tempCoords, setTempCoords] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,8 +128,9 @@ export function Accounts() {
     }
   };
 
-  const handleLocationSelect = () => {
-    setShowMap(true);
+  const handleLocationSelect = async () => {
+    await getCurrentLocation();
+    setShowMap(true); // abre o mapa depois de pegar a posição
   };
 
   const handleMapPress = (e) => {
@@ -160,7 +179,7 @@ export function Accounts() {
     setIsSubmitting(true);
     try {
       const result = await updateAccount(currentAccount.id, formData);
-      
+
       if (result.success) {
         setEditModalVisible(false);
         Alert.alert('Sucesso', 'Conta atualizada com sucesso!');
@@ -188,13 +207,13 @@ export function Accounts() {
 
   const confirmDelete = async () => {
     const result = await deleteAccount(accountToDelete);
-    
+
     if (result.success) {
       Alert.alert('Sucesso', 'Conta removida com sucesso!');
     } else {
       Alert.alert('Erro', result.error || 'Não foi possível remover a conta');
     }
-    
+
     setDeleteConfirmVisible(false);
   };
 
@@ -275,7 +294,7 @@ export function Accounts() {
 
   return (
     <View style={styles.container}>
-      
+
       <View style={styles.header}>
         <Text style={styles.title}>Contas</Text>
         <TouchableOpacity
@@ -511,8 +530,8 @@ export function Accounts() {
                 initialRegion={{
                   latitude: formData.coordenadas?.latitude || -23.5505,
                   longitude: formData.coordenadas?.longitude || -46.6333,
-                  latitudeDelta: 0.0922,
-                  longitudeDelta: 0.0421,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
                 }}
                 onPress={handleMapPress}
               >
