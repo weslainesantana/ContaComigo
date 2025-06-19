@@ -18,7 +18,7 @@ import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 import { useGamifiedAccounts } from '../../contexts/useGamifiedAccounts';
-import { GameStatus } from '../../components/GameStatus';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export function Accounts() {
   const {
@@ -31,27 +31,47 @@ export function Accounts() {
     deleteAccount
   } = useGamifiedAccounts();
 
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
+  const themeColors = {
+    background: isDark ? '#111827' : '#f9fafb',
+    text: isDark ? '#f9fafb' : '#111827',
+    card: isDark ? '#1f2937' : '#ffffff',
+    label: isDark ? '#93c5fd' : '#2563eb',
+    border: isDark ? '#374151' : '#ddd',
+    statusPaga: '#10b981',
+    statusAtrasada: '#ef4444',
+    statusPagar: '#3b82f6',
+    buttonPrimary: isDark ? '#1e40af' : '#2563eb',
+    buttonDanger: isDark ? '#991b1b' : '#ef4444',
+    buttonSuccess: isDark ? '#047857' : '#10b981',
+    inputBackground: isDark ? '#1f2937' : '#f9f9f9',
+    pickerBackground: isDark ? '#1f2937' : '#f9f9f9',
+    modalBackground: isDark ? '#1f2937' : '#ffffff',
+    shadowColor: isDark ? '#000000' : '#00000020',
+  };
+
   const [modalVisible, setModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+
   const getCurrentLocation = async () => {
-    // Solicita permissão
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permissão negada', 'Permita o acesso à localização para continuar.');
       return;
     }
 
-    // Pega localização atual
     let location = await Location.getCurrentPositionAsync({});
     const { latitude, longitude } = location.coords;
 
-    // Atualiza no seu estado
     setFormData(prev => ({
       ...prev,
       coordenadas: { latitude, longitude }
     }));
   };
+
   const [currentAccount, setCurrentAccount] = useState(null);
   const [accountToDelete, setAccountToDelete] = useState(null);
   const [formData, setFormData] = useState({
@@ -106,7 +126,6 @@ export function Accounts() {
       [name]: value
     });
 
-    // Cálculo automático das parcelas
     if (name === 'qtdParcela' && formData.formaPagamento === 'parcelado') {
       const total = parseFloat(formData.valorTotal) || 0;
       const parcelas = parseInt(value) || 1;
@@ -130,7 +149,7 @@ export function Accounts() {
 
   const handleLocationSelect = async () => {
     await getCurrentLocation();
-    setShowMap(true); // abre o mapa depois de pegar a posição
+    setShowMap(true);
   };
 
   const handleMapPress = (e) => {
@@ -258,11 +277,11 @@ export function Accounts() {
     today.setHours(0, 0, 0, 0);
 
     if (account.status === 2) {
-      return { status: 'Paga', color: '#10b981' };
+      return { status: 'Paga', color: themeColors.statusPaga };
     }
 
     if (!account.vencimento || typeof account.vencimento !== 'string') {
-      return { status: 'Data inválida', color: '#ef4444' };
+      return { status: 'Data inválida', color: themeColors.statusAtrasada };
     }
 
     let dueDate;
@@ -271,34 +290,34 @@ export function Accounts() {
       dueDate = new Date(year, month - 1, day);
       dueDate.setHours(0, 0, 0, 0);
     } catch (e) {
-      return { status: 'Data inválida', color: '#ef4444' };
+      return { status: 'Data inválida', color: themeColors.statusAtrasada };
     }
 
     if (account.status === 1) {
-      return { status: 'Atrasada', color: '#ef4444' };
+      return { status: 'Atrasada', color: themeColors.statusAtrasada };
     } else if (today > dueDate) {
-      return { status: 'Atrasada', color: '#ef4444' };
+      return { status: 'Atrasada', color: themeColors.statusAtrasada };
     } else {
-      return { status: 'A pagar', color: '#3b82f6' };
+      return { status: 'A pagar', color: themeColors.statusPagar };
     }
   };
 
   if (loading && !modalVisible && !editModalVisible) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={{ marginTop: 10 }}>Carregando contas...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
+        <ActivityIndicator size="large" color={themeColors.label} />
+        <Text style={{ marginTop: 10, color: themeColors.text }}>Carregando contas...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
 
       <View style={styles.header}>
-        <Text style={styles.title}>Contas</Text>
+        <Text style={[styles.title, { color: themeColors.label }]}>Contas</Text>
         <TouchableOpacity
-          style={styles.addButton}
+          style={[styles.addButton, { backgroundColor: themeColors.buttonPrimary }]}
           onPress={() => setModalVisible(true)}
         >
           <Text style={styles.addButtonText}>+ Adicionar</Text>
@@ -311,26 +330,29 @@ export function Accounts() {
         renderItem={({ item }) => {
           const statusInfo = getAccountStatus(item);
           return (
-            <View style={styles.card}>
+            <View style={[styles.card, {
+              backgroundColor: themeColors.card,
+              shadowColor: themeColors.shadowColor,
+            }]}>
               <View style={styles.cardHeader}>
-                <Text style={styles.name}>{item.nome}</Text>
+                <Text style={[styles.name, { color: themeColors.text }]}>{item.nome}</Text>
                 <View style={[styles.statusBadge, { backgroundColor: statusInfo.color }]}>
                   <Text style={styles.statusText}>{statusInfo.status}</Text>
                 </View>
               </View>
-              <Text style={styles.value}>R$ {parseFloat(item.valorTotal).toFixed(2)}</Text>
-              <Text style={styles.info}>Tipo: {item.tipoGasto} | {item.formaPagamento}</Text>
+              <Text style={[styles.value, { color: themeColors.statusPaga }]}>R$ {parseFloat(item.valorTotal).toFixed(2)}</Text>
+              <Text style={[styles.info, { color: themeColors.text }]}>Tipo: {item.tipoGasto} | {item.formaPagamento}</Text>
               {item.qtdParcela > 1 ? (
-                <Text style={styles.info}>
+                <Text style={[styles.info, { color: themeColors.text }]}>
                   Parcelado em {item.qtdParcela}x de R$ {(parseFloat(item.valorTotal) / item.qtdParcela).toFixed(2)}
                 </Text>
               ) : (
-                <Text style={styles.info}>
+                <Text style={[styles.info, { color: themeColors.text }]}>
                   Pagamento à vista
                 </Text>
               )}
-              <Text style={styles.info}>Data: {item.data}</Text>
-              <Text style={styles.info}>Vencimento: {item.vencimento}</Text>
+              <Text style={[styles.info, { color: themeColors.text }]}>Data: {item.data}</Text>
+              <Text style={[styles.info, { color: themeColors.text }]}>Vencimento: {item.vencimento}</Text>
 
               {item.coordenadas && item.coordenadas.latitude && (
                 <MapView
@@ -350,14 +372,14 @@ export function Accounts() {
               <View style={styles.cardActions}>
                 {item.status !== 2 && (
                   <TouchableOpacity
-                    style={styles.editButton}
+                    style={[styles.editButton, { backgroundColor: themeColors.buttonPrimary }]}
                     onPress={() => handleEdit(item)}
                   >
                     <Text style={styles.editButtonText}>Editar</Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
-                  style={styles.deleteButton}
+                  style={[styles.deleteButton, { backgroundColor: themeColors.buttonDanger }]}
                   onPress={() => {
                     setAccountToDelete(item.id);
                     setDeleteConfirmVisible(true);
@@ -369,7 +391,7 @@ export function Accounts() {
 
               {item.status !== 2 && (
                 <TouchableOpacity
-                  style={styles.payButton}
+                  style={[styles.payButton, { backgroundColor: themeColors.buttonSuccess }]}
                   onPress={() => handleMarkAsPaid(item.id)}
                 >
                   <Text style={styles.payButtonText}>Marcar como paga</Text>
@@ -388,37 +410,52 @@ export function Accounts() {
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <ScrollView style={styles.modalContainer}>
-          <Text style={styles.modalTitle}>Adicionar Nova Conta</Text>
+        <ScrollView style={[styles.modalContainer, { backgroundColor: themeColors.modalBackground }]}>
+          <Text style={[styles.modalTitle, { color: themeColors.label }]}>Adicionar Nova Conta</Text>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Nome da Conta</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>Nome da Conta</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, {
+                backgroundColor: themeColors.inputBackground,
+                borderColor: themeColors.border,
+                color: themeColors.text
+              }]}
               value={formData.nome}
               onChangeText={(text) => handleInputChange('nome', text)}
               placeholder="Ex: Aluguel, Luz, Internet"
+              placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
             />
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Valor Total</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>Valor Total</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, {
+                backgroundColor: themeColors.inputBackground,
+                borderColor: themeColors.border,
+                color: themeColors.text
+              }]}
               value={formData.valorTotal}
               onChangeText={(text) => handleInputChange('valorTotal', text)}
               placeholder="R$ 0,00"
+              placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
               keyboardType="numeric"
             />
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Data</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>Data</Text>
             <TouchableOpacity onPress={() => openDatePicker('data')}>
               <TextInput
-                style={styles.input}
+                style={[styles.input, {
+                  backgroundColor: themeColors.inputBackground,
+                  borderColor: themeColors.border,
+                  color: themeColors.text
+                }]}
                 value={formData.data}
                 placeholder="YYYY-MM-DD"
+                placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
                 editable={false}
               />
             </TouchableOpacity>
@@ -426,19 +463,24 @@ export function Accounts() {
               <DateTimePicker
                 value={formData.data ? new Date(formData.data) : new Date()}
                 mode="date"
-                display="default"
                 onChange={handleDateChange}
+                themeVariant={isDark ? 'dark' : 'light'}
               />
             )}
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Data de Vencimento</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>Data de Vencimento</Text>
             <TouchableOpacity onPress={() => openDatePicker('vencimento')}>
               <TextInput
-                style={styles.input}
+                style={[styles.input, {
+                  backgroundColor: themeColors.inputBackground,
+                  borderColor: themeColors.border,
+                  color: themeColors.text
+                }]}
                 value={formData.vencimento}
                 placeholder="YYYY-MM-DD"
+                placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
                 editable={false}
               />
             </TouchableOpacity>
@@ -446,78 +488,146 @@ export function Accounts() {
               <DateTimePicker
                 value={formData.vencimento ? new Date(formData.vencimento) : new Date()}
                 mode="date"
-                display="default"
                 onChange={handleDateChange}
+                themeVariant={isDark ? 'dark' : 'light'}
               />
             )}
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Tipo de Gasto</Text>
-            <Picker
-              selectedValue={formData.tipoGasto}
-              style={styles.picker}
-              onValueChange={(itemValue) => handleInputChange('tipoGasto', itemValue)}
-            >
-              <Picker.Item label="Fixo" value="fixo" />
-              <Picker.Item label="Variável" value="variável" />
-              <Picker.Item label="Ocasional" value="ocasional" />
-            </Picker>
+            <Text style={[styles.label, { color: themeColors.text }]}>Tipo de Gasto</Text>
+            <View style={[
+              styles.pickerContainer,
+              {
+                backgroundColor: themeColors.pickerBackground,
+                borderColor: themeColors.border
+              }
+            ]}>
+              <Picker
+                selectedValue={formData.tipoGasto}
+                style={[
+                  styles.picker,
+                  {
+                    color: themeColors.text,
+                    backgroundColor: themeColors.pickerBackground
+                  }
+                ]}
+                onValueChange={(itemValue) => handleInputChange('tipoGasto', itemValue)}
+                dropdownIconColor={themeColors.text}
+                mode="dropdown"
+              >
+                <Picker.Item
+                  label="Fixo"
+                  value="fixo"
+                  style={{ color: themeColors.text, backgroundColor: themeColors.pickerBackground }}
+                />
+                <Picker.Item
+                  label="Variável"
+                  value="variável"
+                  style={{ color: themeColors.text, backgroundColor: themeColors.pickerBackground }}
+                />
+                <Picker.Item
+                  label="Ocasional"
+                  value="ocasional"
+                  style={{ color: themeColors.text, backgroundColor: themeColors.pickerBackground }}
+                />
+              </Picker>
+            </View>
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Forma de Pagamento</Text>
-            <Picker
-              selectedValue={formData.formaPagamento}
-              style={styles.picker}
-              onValueChange={(itemValue) => handleInputChange('formaPagamento', itemValue)}
-            >
-              <Picker.Item label="À vista" value="à vista" />
-              <Picker.Item label="Parcelado" value="parcelado" />
-            </Picker>
+            <Text style={[styles.label, { color: themeColors.text }]}>Forma de Pagamento</Text>
+            <View style={[
+              styles.pickerContainer,
+              {
+                backgroundColor: themeColors.pickerBackground,
+                borderColor: themeColors.border
+              }
+            ]}>
+              <Picker
+                selectedValue={formData.formaPagamento}
+                style={[
+                  styles.picker,
+                  {
+                    color: themeColors.text,
+                    backgroundColor: themeColors.pickerBackground
+                  }
+                ]}
+                onValueChange={(itemValue) => handleInputChange('formaPagamento', itemValue)}
+                dropdownIconColor={themeColors.text}
+                mode="dropdown"
+              >
+                <Picker.Item
+                  label="À vista"
+                  value="à vista"
+                  style={{ color: themeColors.text, backgroundColor: themeColors.pickerBackground }}
+                />
+                <Picker.Item
+                  label="Parcelado"
+                  value="parcelado"
+                  style={{ color: themeColors.text, backgroundColor: themeColors.pickerBackground }}
+                />
+              </Picker>
+            </View>
           </View>
 
           {formData.formaPagamento === 'parcelado' && (
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Quantidade de Parcelas</Text>
+              <Text style={[styles.label, { color: themeColors.text }]}>Quantidade de Parcelas</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, {
+                  backgroundColor: themeColors.inputBackground,
+                  borderColor: themeColors.border,
+                  color: themeColors.text
+                }]}
                 value={formData.qtdParcela.toString()}
                 onChangeText={(text) => handleInputChange('qtdParcela', text)}
                 placeholder="Número de parcelas"
+                placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
                 keyboardType="numeric"
               />
             </View>
           )}
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Localidade</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>Localidade</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, {
+                backgroundColor: themeColors.inputBackground,
+                borderColor: themeColors.border,
+                color: themeColors.text
+              }]}
               value={formData.localidade}
               onChangeText={(text) => handleInputChange('localidade', text)}
               placeholder="Onde foi realizado o gasto?"
+              placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
             />
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Localização (opcional)</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>Localização (opcional)</Text>
             <View style={styles.locationContainer}>
               <TextInput
-                style={[styles.input, { flex: 1 }]}
+                style={[styles.input, {
+                  flex: 1,
+                  backgroundColor: themeColors.inputBackground,
+                  borderColor: themeColors.border,
+                  color: themeColors.text
+                }]}
                 value={formData.coordenadas ? `${formData.coordenadas.latitude.toFixed(4)}, ${formData.coordenadas.longitude.toFixed(4)}` : ''}
                 placeholder="Selecione no mapa"
+                placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
                 editable={false}
               />
               <TouchableOpacity
-                style={styles.locationButton}
+                style={[styles.locationButton, { backgroundColor: themeColors.card }]}
                 onPress={handleLocationSelect}
               >
-                <Text style={styles.locationButtonText}>🗺️</Text>
+                <Text style={[styles.locationButtonText, { color: themeColors.text }]}>🗺️</Text>
               </TouchableOpacity>
             </View>
             {formData.coordenadas && (
-              <Text style={styles.coordsText}>
+              <Text style={[styles.coordsText, { color: themeColors.text }]}>
                 Lat: {formData.coordenadas.latitude.toFixed(4)}, Long: {formData.coordenadas.longitude.toFixed(4)}
               </Text>
             )}
@@ -539,13 +649,13 @@ export function Accounts() {
               </MapView>
               <View style={styles.mapButtons}>
                 <TouchableOpacity
-                  style={[styles.button, styles.cancelButton]}
+                  style={[styles.button, { backgroundColor: themeColors.buttonDanger }]}
                   onPress={() => setShowMap(false)}
                 >
                   <Text style={styles.buttonText}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.button, styles.submitButton]}
+                  style={[styles.button, { backgroundColor: themeColors.buttonPrimary }]}
                   onPress={confirmLocation}
                 >
                   <Text style={styles.buttonText}>Confirmar</Text>
@@ -556,7 +666,7 @@ export function Accounts() {
 
           <View style={styles.buttonGroup}>
             <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
+              style={[styles.button, { backgroundColor: themeColors.buttonDanger }]}
               onPress={() => {
                 setModalVisible(false);
                 setShowMap(false);
@@ -566,7 +676,7 @@ export function Accounts() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.button, styles.submitButton]}
+              style={[styles.button, { backgroundColor: themeColors.buttonPrimary }]}
               onPress={handleSubmit}
               disabled={isSubmitting}
             >
@@ -587,37 +697,52 @@ export function Accounts() {
         visible={editModalVisible}
         onRequestClose={() => setEditModalVisible(false)}
       >
-        <ScrollView style={styles.modalContainer}>
-          <Text style={styles.modalTitle}>Editar Conta</Text>
+        <ScrollView style={[styles.modalContainer, { backgroundColor: themeColors.modalBackground }]}>
+          <Text style={[styles.modalTitle, { color: themeColors.label }]}>Editar Conta</Text>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Nome da Conta</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>Nome da Conta</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, {
+                backgroundColor: themeColors.inputBackground,
+                borderColor: themeColors.border,
+                color: themeColors.text
+              }]}
               value={formData.nome}
               onChangeText={(text) => handleInputChange('nome', text)}
               placeholder="Ex: Aluguel, Luz, Internet"
+              placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
             />
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Valor Total</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>Valor Total</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, {
+                backgroundColor: themeColors.inputBackground,
+                borderColor: themeColors.border,
+                color: themeColors.text
+              }]}
               value={formData.valorTotal}
               onChangeText={(text) => handleInputChange('valorTotal', text)}
               placeholder="R$ 0,00"
+              placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
               keyboardType="numeric"
             />
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Data</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>Data</Text>
             <TouchableOpacity onPress={() => openDatePicker('data')}>
               <TextInput
-                style={styles.input}
+                style={[styles.input, {
+                  backgroundColor: themeColors.inputBackground,
+                  borderColor: themeColors.border,
+                  color: themeColors.text
+                }]}
                 value={formData.data}
                 placeholder="YYYY-MM-DD"
+                placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
                 editable={false}
               />
             </TouchableOpacity>
@@ -625,19 +750,25 @@ export function Accounts() {
               <DateTimePicker
                 value={formData.data ? new Date(formData.data) : new Date()}
                 mode="date"
-                display="default"
+                display={isDark ? 'spinner' : 'default'}
                 onChange={handleDateChange}
+                themeVariant={isDark ? 'dark' : 'light'}
               />
             )}
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Data de Vencimento</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>Data de Vencimento</Text>
             <TouchableOpacity onPress={() => openDatePicker('vencimento')}>
               <TextInput
-                style={styles.input}
+                style={[styles.input, {
+                  backgroundColor: themeColors.inputBackground,
+                  borderColor: themeColors.border,
+                  color: themeColors.text
+                }]}
                 value={formData.vencimento}
                 placeholder="YYYY-MM-DD"
+                placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
                 editable={false}
               />
             </TouchableOpacity>
@@ -645,78 +776,101 @@ export function Accounts() {
               <DateTimePicker
                 value={formData.vencimento ? new Date(formData.vencimento) : new Date()}
                 mode="date"
-                display="default"
+                display={isDark ? 'spinner' : 'default'}
                 onChange={handleDateChange}
+                themeVariant={isDark ? 'dark' : 'light'}
               />
             )}
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Tipo de Gasto</Text>
-            <Picker
-              selectedValue={formData.tipoGasto}
-              style={styles.picker}
-              onValueChange={(itemValue) => handleInputChange('tipoGasto', itemValue)}
-            >
-              <Picker.Item label="Fixo" value="fixo" />
-              <Picker.Item label="Variável" value="variável" />
-              <Picker.Item label="Ocasional" value="ocasional" />
-            </Picker>
+            <Text style={[styles.label, { color: themeColors.text }]}>Tipo de Gasto</Text>
+            <View style={[styles.pickerContainer, { backgroundColor: themeColors.pickerBackground }]}>
+              <Picker
+                selectedValue={formData.tipoGasto}
+                style={[styles.picker, { color: themeColors.text }]}
+                onValueChange={(itemValue) => handleInputChange('tipoGasto', itemValue)}
+                dropdownIconColor={themeColors.text}
+              >
+                <Picker.Item label="Fixo" value="fixo" />
+                <Picker.Item label="Variável" value="variável" />
+                <Picker.Item label="Ocasional" value="ocasional" />
+              </Picker>
+            </View>
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Forma de Pagamento</Text>
-            <Picker
-              selectedValue={formData.formaPagamento}
-              style={styles.picker}
-              onValueChange={(itemValue) => handleInputChange('formaPagamento', itemValue)}
-            >
-              <Picker.Item label="À vista" value="à vista" />
-              <Picker.Item label="Parcelado" value="parcelado" />
-            </Picker>
+            <Text style={[styles.label, { color: themeColors.text }]}>Forma de Pagamento</Text>
+            <View style={[styles.pickerContainer, { backgroundColor: themeColors.pickerBackground }]}>
+              <Picker
+                selectedValue={formData.formaPagamento}
+                style={[styles.picker, { color: themeColors.text }]}
+                onValueChange={(itemValue) => handleInputChange('formaPagamento', itemValue)}
+                dropdownIconColor={themeColors.text}
+              >
+                <Picker.Item label="À vista" value="à vista" />
+                <Picker.Item label="Parcelado" value="parcelado" />
+              </Picker>
+            </View>
           </View>
 
           {formData.formaPagamento === 'parcelado' && (
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Quantidade de Parcelas</Text>
+              <Text style={[styles.label, { color: themeColors.text }]}>Quantidade de Parcelas</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, {
+                  backgroundColor: themeColors.inputBackground,
+                  borderColor: themeColors.border,
+                  color: themeColors.text
+                }]}
                 value={formData.qtdParcela.toString()}
                 onChangeText={(text) => handleInputChange('qtdParcela', text)}
                 placeholder="Número de parcelas"
+                placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
                 keyboardType="numeric"
               />
             </View>
           )}
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Localidade</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>Localidade</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, {
+                backgroundColor: themeColors.inputBackground,
+                borderColor: themeColors.border,
+                color: themeColors.text
+              }]}
               value={formData.localidade}
               onChangeText={(text) => handleInputChange('localidade', text)}
               placeholder="Onde foi realizado o gasto?"
+              placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
             />
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Localização (opcional)</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>Localização (opcional)</Text>
             <View style={styles.locationContainer}>
               <TextInput
-                style={[styles.input, { flex: 1 }]}
+                style={[styles.input, {
+                  flex: 1,
+                  backgroundColor: themeColors.inputBackground,
+                  borderColor: themeColors.border,
+                  color: themeColors.text
+                }]}
                 value={formData.coordenadas ? `${formData.coordenadas.latitude.toFixed(4)}, ${formData.coordenadas.longitude.toFixed(4)}` : ''}
                 placeholder="Selecione no mapa"
+                placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
                 editable={false}
               />
               <TouchableOpacity
-                style={styles.locationButton}
+                style={[styles.locationButton, { backgroundColor: themeColors.card }]}
                 onPress={handleLocationSelect}
               >
-                <Text style={styles.locationButtonText}>🗺️</Text>
+                <Text style={[styles.locationButtonText, { color: themeColors.text }]}>🗺️</Text>
               </TouchableOpacity>
             </View>
             {formData.coordenadas && (
-              <Text style={styles.coordsText}>
+              <Text style={[styles.coordsText, { color: themeColors.text }]}>
                 Lat: {formData.coordenadas.latitude.toFixed(4)}, Long: {formData.coordenadas.longitude.toFixed(4)}
               </Text>
             )}
@@ -738,13 +892,13 @@ export function Accounts() {
               </MapView>
               <View style={styles.mapButtons}>
                 <TouchableOpacity
-                  style={[styles.button, styles.cancelButton]}
+                  style={[styles.button, { backgroundColor: themeColors.buttonDanger }]}
                   onPress={() => setShowMap(false)}
                 >
                   <Text style={styles.buttonText}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.button, styles.submitButton]}
+                  style={[styles.button, { backgroundColor: themeColors.buttonPrimary }]}
                   onPress={confirmLocation}
                 >
                   <Text style={styles.buttonText}>Confirmar</Text>
@@ -755,13 +909,13 @@ export function Accounts() {
 
           <View style={styles.buttonGroup}>
             <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
+              style={[styles.button, { backgroundColor: themeColors.buttonDanger }]}
               onPress={() => setEditModalVisible(false)}
             >
               <Text style={styles.buttonText}>Cancelar</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.button, styles.submitButton]}
+              style={[styles.button, { backgroundColor: themeColors.buttonPrimary }]}
               onPress={handleUpdateAccount}
               disabled={isSubmitting}
             >
@@ -783,17 +937,17 @@ export function Accounts() {
         onRequestClose={() => setDeleteConfirmVisible(false)}
       >
         <View style={styles.centeredView}>
-          <View style={styles.modalView}>
-            <Text style={styles.modalText}>Tem certeza que deseja excluir esta conta?</Text>
+          <View style={[styles.modalView, { backgroundColor: themeColors.modalBackground }]}>
+            <Text style={[styles.modalText, { color: themeColors.text }]}>Tem certeza que deseja excluir esta conta?</Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
+                style={[styles.modalButton, { backgroundColor: themeColors.buttonDanger }]}
                 onPress={() => setDeleteConfirmVisible(false)}
               >
                 <Text style={styles.modalButtonText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.deleteButton]}
+                style={[styles.modalButton, { backgroundColor: themeColors.buttonPrimary }]}
                 onPress={confirmDelete}
               >
                 <Text style={styles.modalButtonText}>Excluir</Text>
@@ -840,7 +994,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
@@ -1079,5 +1233,13 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderRadius: 6,
+    marginTop: 5,
+  },
+  picker: {
+    width: '100%',
   },
 });

@@ -1,14 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Dimensions, StyleSheet } from 'react-native';
+import { View, Text, Dimensions, StyleSheet, ScrollView } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 import api from '../../services/api';
 import { useAccounts } from '../../contexts/AccountsContext';
 import { ActivityIndicator } from 'react-native-paper';
 import { GameStatus } from '../../components/GameStatus';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export function Home() {
   const [contas, setContas] = useState([]);
   const { accounts, loading } = useAccounts();
+  const { theme } = useTheme();
+
+  const isDark = theme === 'dark';
+
+  const themeColors = {
+    background: isDark ? '#111827' : '#f9fafb',
+    text: isDark ? '#f9fafb' : '#111827',
+    card: isDark ? '#1f2937' : '#ffffff',
+    label: isDark ? '#93c5fd' : '#2563eb',
+    border: isDark ? '#374151' : '#ddd',
+  };
 
   useEffect(() => {
     api.get('/accounts')
@@ -18,9 +30,9 @@ export function Home() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={{ marginTop: 10 }}>Carregando contas...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
+        <ActivityIndicator size="large" color={themeColors.label} />
+        <Text style={{ marginTop: 10, color: themeColors.text }}>Carregando contas...</Text>
       </View>
     );
   }
@@ -34,72 +46,78 @@ export function Home() {
       name: 'Pagar',
       population: contasPagar,
       color: '#facc15',
-      legendFontColor: '#555',
+      legendFontColor: themeColors.text,
       legendFontSize: 14,
     },
     {
       name: 'Atrasadas',
       population: contasAtrasadas,
       color: '#f43f5e',
-      legendFontColor: '#555',
+      legendFontColor: themeColors.text,
       legendFontSize: 14,
     },
     {
       name: 'Pagas',
       population: contasPagas,
       color: '#3b82f6',
-      legendFontColor: '#555',
+      legendFontColor: themeColors.text,
       legendFontSize: 14,
     },
   ];
 
   return (
-    <><GameStatus />
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Resumo geral</Text>
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <GameStatus />
+        <View style={styles.content}>
+          <Text style={[styles.title, { color: themeColors.label }]}>Resumo geral</Text>
+          <PieChart
+            data={chartData}
+            width={Dimensions.get('window').width - 60}
+            height={200}
+            chartConfig={{ color: () => themeColors.text }}
+            accessor="population"
+            backgroundColor="transparent"
+            paddingLeft="20"
+            center={[5, 0]}
+            absolute
+            style={styles.chart}
+          />
+          <View style={styles.boxContainer}>
+            <View style={[styles.card, styles.cardPagar, { backgroundColor: themeColors.card }]}>
+              <Text style={[styles.label, { color: themeColors.label }]}>Pagar</Text>
+              <Text style={[styles.value, { color: themeColors.text }]}>{contasPagar}</Text>
+            </View>
 
-        <PieChart
-          data={chartData}
-          width={Dimensions.get('window').width - 60}
-          height={200}
-          chartConfig={{ color: () => '#000' }}
-          accessor="population"
-          backgroundColor="transparent"
-          paddingLeft="20"
-          center={[5, 0]}
-          absolute
-          style={styles.chart} />
+            <View style={[styles.card, styles.cardAtrasadas, { backgroundColor: themeColors.card }]}>
+              <Text style={[styles.label, { color: themeColors.label }]}>Atrasadas</Text>
+              <Text style={[styles.value, { color: themeColors.text }]}>{contasAtrasadas}</Text>
+            </View>
 
-        <View style={styles.boxContainer}>
-          <View style={[styles.card, styles.cardPagar]}>
-            <Text style={styles.label}>Pagar</Text>
-            <Text style={styles.value}>{contasPagar}</Text>
-          </View>
-          <View style={[styles.card, styles.cardAtrasadas]}>
-            <Text style={styles.label}>Atrasadas</Text>
-            <Text style={styles.value}>{contasAtrasadas}</Text>
-          </View>
-          <View style={[styles.card, styles.cardPagas]}>
-            <Text style={styles.label}>Pagas</Text>
-            <Text style={styles.value}>{contasPagas}</Text>
+            <View style={[styles.card, styles.cardPagas, { backgroundColor: themeColors.card }]}>
+              <Text style={[styles.label, { color: themeColors.label }]}>Pagas</Text>
+              <Text style={[styles.value, { color: themeColors.text }]}>{contasPagas}</Text>
+            </View>
           </View>
         </View>
-      </View>
-    </View></>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
-    alignItems: 'center',
-    marginTop: 40,
-    paddingHorizontal: 20,
   },
-  center: {
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 40,
+    paddingBottom: 40,
     alignItems: 'center',
   },
   content: {
@@ -111,7 +129,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#2563eb',
     marginBottom: 15,
   },
   chart: {
@@ -123,7 +140,6 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   card: {
-    backgroundColor: '#fff',
     paddingVertical: 18,
     paddingHorizontal: 12,
     borderRadius: 16,
@@ -149,7 +165,6 @@ const styles = StyleSheet.create({
     borderBottomColor: '#3b82f6',
   },
   label: {
-    color: '#2563eb',
     fontWeight: '600',
     fontSize: 15,
     marginBottom: 5,
@@ -157,9 +172,5 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#111827',
-  },
-  container_game: {
-
   },
 });

@@ -2,76 +2,82 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useGame } from '../../contexts/GameContext';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export const GameStatus = () => {
-  const { 
-    level, 
-    xp, 
-    xpToNextLevel, 
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
+  const {
+    level,
+    xp,
+    xpToNextLevel,
     unlockedAchievements
   } = useGame();
-  
+
   const progress = Math.min((xp / xpToNextLevel) * 100, 100);
   const [showAchievements, setShowAchievements] = React.useState(false);
 
+  const dynamicStyles = styles(isDark);
+
   return (
-    <View style={styles.container}>
-      <View style={styles.levelContainer}>
-        <View style={styles.levelBadge}>
-          <Text style={styles.levelText}>{level}</Text>
+    <View style={dynamicStyles.container}>
+      <View style={dynamicStyles.levelContainer}>
+        <View style={dynamicStyles.levelBadge}>
+          <Text style={dynamicStyles.levelText}>{level}</Text>
         </View>
-        <Text style={styles.levelLabel}>Nível</Text>
+        <Text style={dynamicStyles.levelLabel}>Nível</Text>
       </View>
-      
-      <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <View 
+
+      <View style={dynamicStyles.progressContainer}>
+        <View style={dynamicStyles.progressBar}>
+          <View
             style={[
-              styles.progressFill, 
+              dynamicStyles.progressFill,
               { width: `${progress}%` }
-            ]} 
+            ]}
           />
         </View>
-        <Text style={styles.xpText}>
+        <Text style={dynamicStyles.xpText}>
           {xp}/{xpToNextLevel} XP ({Math.floor(progress)}%)
         </Text>
       </View>
-      
-      <TouchableOpacity 
-        style={styles.achievementsButton}
+
+      <TouchableOpacity
+        style={dynamicStyles.achievementsButton}
         onPress={() => setShowAchievements(!showAchievements)}
       >
-        <MaterialIcons 
-          name={showAchievements ? "expand-less" : "expand-more"} 
-          size={24} 
-          color="#3b82f6" 
+        <MaterialIcons
+          name={showAchievements ? "expand-less" : "expand-more"}
+          size={24}
+          color={isDark ? "#60a5fa" : "#3b82f6"}
         />
-        <Text style={styles.achievementsButtonText}>
+        <Text style={dynamicStyles.achievementsButtonText}>
           Conquistas ({unlockedAchievements.length})
         </Text>
       </TouchableOpacity>
 
       {showAchievements && (
-        <View style={styles.achievementsContainer}>
+        <View style={dynamicStyles.achievementsContainer}>
           {unlockedAchievements.length > 0 ? (
             unlockedAchievements.map(achievement => (
-              <View key={achievement.id} style={styles.achievementItem}>
-                <MaterialIcons 
-                  name="emoji-events" 
-                  size={20} 
-                  color="#f59e0b" 
-                  style={styles.achievementIcon}
+              <View key={achievement.id} style={dynamicStyles.achievementItem}>
+                <MaterialIcons
+                  name="emoji-events"
+                  size={20}
+                  color="#f59e0b"
+                  style={dynamicStyles.achievementIcon}
                 />
-                <View style={styles.achievementTextContainer}>
-                  <Text style={styles.achievementTitle}>{achievement.name}</Text>
-                  <Text style={styles.achievementDescription}>
+                <View style={dynamicStyles.achievementTextContainer}>
+                  <Text style={dynamicStyles.achievementTitle}>{achievement.name}</Text>
+                  <Text style={dynamicStyles.achievementDescription}>
                     {achievement.description}
                   </Text>
                 </View>
               </View>
             ))
           ) : (
-            <Text style={styles.noAchievementsText}>
+            <Text style={dynamicStyles.noAchievementsText}>
               Nenhuma conquista desbloqueada ainda!
             </Text>
           )}
@@ -81,9 +87,9 @@ export const GameStatus = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = (isDark) => StyleSheet.create({
   container: {
-    backgroundColor: '#ffffff',
+    backgroundColor: isDark ? '#1f2937' : '#ffffff',
     borderRadius: 12,
     padding: 16,
     margin: 12,
@@ -92,6 +98,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 3,
+    width: '100%',
   },
   levelContainer: {
     flexDirection: 'row',
@@ -114,7 +121,7 @@ const styles = StyleSheet.create({
   },
   levelLabel: {
     fontSize: 16,
-    color: '#4b5563',
+    color: isDark ? '#d1d5db' : '#4b5563',
     fontWeight: '500',
   },
   progressContainer: {
@@ -122,7 +129,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 10,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: isDark ? '#374151' : '#e5e7eb',
     borderRadius: 5,
     overflow: 'hidden',
     marginBottom: 6,
@@ -133,7 +140,7 @@ const styles = StyleSheet.create({
   },
   xpText: {
     fontSize: 12,
-    color: '#6b7280',
+    color: isDark ? '#9ca3af' : '#6b7280',
     textAlign: 'right',
   },
   achievementsButton: {
@@ -142,14 +149,14 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   achievementsButtonText: {
-    color: '#3b82f6',
+    color: isDark ? '#60a5fa' : '#3b82f6',
     fontWeight: '600',
     marginLeft: 6,
   },
   achievementsContainer: {
     marginTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: isDark ? '#374151' : '#e5e7eb',
     paddingTop: 12,
   },
   achievementItem: {
@@ -157,7 +164,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: isDark ? '#4b5563' : '#f3f4f6',
   },
   achievementIcon: {
     marginRight: 10,
@@ -167,16 +174,16 @@ const styles = StyleSheet.create({
   },
   achievementTitle: {
     fontWeight: '600',
-    color: '#1f2937',
+    color: isDark ? '#f3f4f6' : '#1f2937',
     fontSize: 14,
   },
   achievementDescription: {
-    color: '#6b7280',
+    color: isDark ? '#9ca3af' : '#6b7280',
     fontSize: 12,
     marginTop: 2,
   },
   noAchievementsText: {
-    color: '#9ca3af',
+    color: isDark ? '#6b7280' : '#9ca3af',
     fontStyle: 'italic',
     textAlign: 'center',
     paddingVertical: 8,
