@@ -10,15 +10,17 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import api from '../../services/api';
 
 export default function TelaCadastro() {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmaSenha, setConfirmaSenha] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigation = useNavigation();
 
-  const handleCadastro = () => {
+  const handleCadastro = async () => {
     if (!nome || !email || !senha || !confirmaSenha) {
       Alert.alert('Erro', 'Por favor, preencha todos os campos');
       return;
@@ -29,8 +31,30 @@ export default function TelaCadastro() {
       return;
     }
 
-    // LOGICA DE AUTENTICAÇAO
-    Alert.alert('Cadastro efetuado', `Bem-vindo, ${nome}`);
+    setLoading(true);
+    
+    try {
+      const response = await api.post('/users', {
+        nome,
+        email,
+        senha
+      });
+
+      Alert.alert('Sucesso', 'Cadastro realizado com sucesso!');
+      navigation.navigate('TelaLogin');
+    } catch (error) {
+      console.error('Erro no cadastro:', error);
+      
+      let errorMessage = 'Erro ao realizar cadastro';
+      if (error.response) {
+        // Se a API retornar uma mensagem de erro específica
+        errorMessage = error.response.data.message || errorMessage;
+      }
+      
+      Alert.alert('Erro', errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -79,8 +103,15 @@ export default function TelaCadastro() {
         secureTextEntry
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleCadastro} activeOpacity={0.8}>
-        <Text style={styles.buttonText}>Cadastrar</Text>
+      <TouchableOpacity 
+        style={styles.button} 
+        onPress={handleCadastro} 
+        activeOpacity={0.8}
+        disabled={loading}
+      >
+        <Text style={styles.buttonText}>
+          {loading ? 'Carregando...' : 'Cadastrar'}
+        </Text>
       </TouchableOpacity>
 
       <View style={styles.footer}>
@@ -92,7 +123,6 @@ export default function TelaCadastro() {
     </KeyboardAvoidingView>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {

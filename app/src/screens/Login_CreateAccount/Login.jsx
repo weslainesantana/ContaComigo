@@ -9,21 +9,46 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator
 } from 'react-native';
+import api from '../../services/api';
 
 export default function TelaLogin() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigation = useNavigation();
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !senha) {
       Alert.alert('Erro', 'Por favor, preencha todos os campos');
       return;
     }
 
-    // LOGICA DE AUTENTICAÇAO
-    Alert.alert('Login efetuado', `Bem-vindo}`);
+    setLoading(true);
+    
+    try {
+      // Busca todos os usuários cadastrados
+      const response = await api.get('/users');
+      const usuarios = response.data;
+
+      // Verifica se existe um usuário com o email e senha fornecidos
+      const usuarioEncontrado = usuarios.find(
+        usuario => usuario.email === email && usuario.senha === senha
+      );
+
+      if (usuarioEncontrado) {
+        // Login bem-sucedido
+        navigation.replace("Main", { usuario: usuarioEncontrado });
+      } else {
+        Alert.alert('Erro', 'E-mail ou senha incorretos');
+      }
+    } catch (error) {
+      console.error('Erro no login:', error);
+      Alert.alert('Erro', 'Não foi possível conectar ao servidor');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCadastro = () => {
@@ -57,8 +82,17 @@ export default function TelaLogin() {
         secureTextEntry
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin} activeOpacity={0.8}>
-        <Text style={styles.buttonText}>Entrar</Text>
+      <TouchableOpacity 
+        style={styles.button} 
+        onPress={handleLogin} 
+        activeOpacity={0.8}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Entrar</Text>
+        )}
       </TouchableOpacity>
 
       <View style={styles.footer}>

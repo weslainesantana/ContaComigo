@@ -37,15 +37,6 @@ export default function Onboarding() {
       >
         Criar Conta
       </Button>
-      <Button
-        mode="outlined"
-        onPress={() => navigation.replace("Main")}
-        style={styles.button_enter}
-        labelStyle={styles.label_enter}
-        contentStyle={{ flexDirection: "row-reverse" }}
-      >
-        Provisorio - MAIN
-      </Button>
     </View>
   );
 }
