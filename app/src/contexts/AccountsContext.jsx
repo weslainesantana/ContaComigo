@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import api from '../services/api';
 import { useGame, XP_EVENTS, ACHIEVEMENTS } from './GameContext';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const STATUS = {
   PENDING: 0,    // A pagar
   OVERDUE: 1,    // Atrasada
@@ -16,14 +16,16 @@ export const AccountsProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const { addXp, unlockAchievement } = useGame();
 
-  const fetchAccounts = async () => {
+  const fetchAccounts = async (email) => {
     try {
       setLoading(true);
       const response = await api.get('/accounts');
-      setAccounts(response.data);
+      // Filtrar contas pelo email do usuário
+      const filteredAccounts = response.data.filter(account => account.email === email);
+      setAccounts(filteredAccounts);
       setError(null);
       
-      checkAchievements(response.data);
+      checkAchievements(filteredAccounts);
     } catch (err) {
       setError(err.message);
       console.error('Erro ao buscar contas:', err);
@@ -94,13 +96,17 @@ export const AccountsProvider = ({ children }) => {
   const addAccount = async (accountData) => {
     try {
       setLoading(true);
-      const response = await api.post('/accounts', accountData);
+      const email = await AsyncStorage.getItem('email');
+      const accountWithEmail = {
+        ...accountData,
+        email: email // Adiciona o email ao objeto da conta
+      };
+      
+      const response = await api.post('/accounts', accountWithEmail);
       setAccounts(prev => [...prev, response.data]);
       
-      // Gamificação - Adicionar XP por criar conta
       addXp(XP_EVENTS.ADD_ACCOUNT);
       
-      // Verificar conquista de adicionar contas
       if (accounts.length + 1 >= 10) {
         unlockAchievement(ACHIEVEMENTS.ACCOUNT_MANAGER);
       }

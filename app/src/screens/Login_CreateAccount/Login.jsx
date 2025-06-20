@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
 
 export default function TelaLogin() {
@@ -38,6 +39,11 @@ export default function TelaLogin() {
       );
 
       if (usuarioEncontrado) {
+        // Remove qualquer email existente antes de salvar o novo
+        await AsyncStorage.removeItem('email');
+        // Salva o novo email no AsyncStorage
+        await AsyncStorage.setItem('email', email);
+        
         // Login bem-sucedido
         navigation.replace("Main", { usuario: usuarioEncontrado });
       } else {

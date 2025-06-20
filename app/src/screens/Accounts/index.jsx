@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import {
   FlatList,
   Text,
@@ -21,6 +23,7 @@ import { useGamifiedAccounts } from '../../contexts/useGamifiedAccounts';
 import { useTheme } from '../../contexts/ThemeContext';
 
 export function Accounts() {
+  const [userEmail, setUserEmail] = useState('');
   const {
     accounts,
     loading,
@@ -96,8 +99,22 @@ export function Accounts() {
   const [showVencimentoPicker, setShowVencimentoPicker] = useState(false);
   const [currentDateField, setCurrentDateField] = useState(null);
 
+  // useEffect CORRIGIDO
   useEffect(() => {
-    fetchAccounts();
+    const loadUserAndAccounts = async () => {
+      try {
+        const email = await AsyncStorage.getItem('email');
+        if (email) {
+          setUserEmail(email);
+          // Chame fetchAccounts AQUI, passando o e-mail obtido
+          fetchAccounts(email);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar dados do usuário:', error);
+      }
+    };
+
+    loadUserAndAccounts();
   }, []);
 
   const openDatePicker = (field) => {
