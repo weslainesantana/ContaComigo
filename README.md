@@ -15,12 +15,13 @@ Aplicativo mobile desenvolvido com **React Native** para auxiliar no controle fi
 
 ## 🛠️ Tecnologias utilizadas
 
-* **React Native** – UI cross‑platform mobile.
-* **react-native-chart-kit** – gráficos (PieChart).
-* **React Native Paper** – componentes como `ActivityIndicator`.
-* **Context API** – gerenciamento global de contas.
-* **axios** (na service `api`) – chamadas HTTP à API REST.
-* **styled-components** ou diretamente `StyleSheet` – estilos responsivos.
+- **React Native** (Expo)
+- **React Navigation**
+- **React Native Chart Kit** (gráficos)
+- **React Native Paper** (componentes visuais)
+- **Axios** (requisições HTTP)
+- **AsyncStorage** (armazenamento local)
+- **Context API** (gerenciamento de estado global)
 
 ## 🔧 Instalação e configuração
 
