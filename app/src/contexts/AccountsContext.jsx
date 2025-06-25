@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import api from '../services/api';
 import { useGame, XP_EVENTS, ACHIEVEMENTS } from './GameContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const STATUS = {
   PENDING: 0,    // A pagar
   OVERDUE: 1,    // Atrasada
@@ -17,10 +18,14 @@ export const AccountsProvider = ({ children }) => {
   const { addXp, unlockAchievement } = useGame();
 
   const fetchAccounts = async (email) => {
+    if (!email) {
+      setAccounts([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const response = await api.get('/accounts');
-      // Filtrar contas pelo email do usuário
       const filteredAccounts = response.data.filter(account => account.email === email);
       setAccounts(filteredAccounts);
       setError(null);
@@ -34,29 +39,49 @@ export const AccountsProvider = ({ children }) => {
     }
   };
 
+  const checkMonthlyPerfectAchievement = (allUserAccounts) => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const accountsForCurrentMonth = allUserAccounts.filter(account => {
+      if (!account.vencimento) return false;
+      const dueDate = new Date(`${account.vencimento}T00:00:00`);
+      return dueDate.getMonth() === currentMonth && dueDate.getFullYear() === currentYear;
+    });
+
+    if (accountsForCurrentMonth.length === 0) {
+      return;
+    }
+
+    const allAccountsInMonthArePaid = accountsForCurrentMonth.every(
+      account => account.status === STATUS.PAID
+    );
+
+    if (allAccountsInMonthArePaid) {
+      unlockAchievement(ACHIEVEMENTS.SAVER);
+    }
+  };
+
   const checkAchievements = (accountsList) => {
     const paidAccounts = accountsList.filter(a => a.status === STATUS.PAID);
     
-    // Verificar primeiro pagamento
     if (paidAccounts.length >= 1) {
       unlockAchievement(ACHIEVEMENTS.FIRST_BLOOD);
     }
     
-    // Verificar conquista de adicionar contas
     if (accountsList.length >= 10) {
       unlockAchievement(ACHIEVEMENTS.ACCOUNT_MANAGER);
     }
     
-    // Verificar sequência de pagamentos em dia
     checkOnTimeStreak(paidAccounts);
     
-    // Verificar pagamento antecipado
     const earlyPayments = paidAccounts.filter(account => {
       if (!account.dataPagamento || !account.vencimento) return false;
       
-      const paymentDate = new Date(account.dataPagamento);
-      const dueDate = new Date(account.vencimento);
-      const daysBefore = (dueDate - paymentDate) / (1000 * 60 * 60 * 24);
+      const paymentDate = new Date(`${account.dataPagamento}T00:00:00`);
+      const dueDate = new Date(`${account.vencimento}T00:00:00`);
+      const daysBefore = (dueDate.getTime() - paymentDate.getTime()) / (1000 * 60 * 60 * 24);
       
       return daysBefore >= 5;
     });
@@ -74,8 +99,8 @@ export const AccountsProvider = ({ children }) => {
     for (const account of sortedAccounts) {
       if (!account.dataPagamento || !account.vencimento) continue;
       
-      const paymentDate = new Date(account.dataPagamento);
-      const dueDate = new Date(account.vencimento);
+      const paymentDate = new Date(`${account.dataPagamento}T00:00:00`);
+      const dueDate = new Date(`${account.vencimento}T00:00:00`);
       
       if (paymentDate <= dueDate) {
         streak++;
@@ -97,10 +122,7 @@ export const AccountsProvider = ({ children }) => {
     try {
       setLoading(true);
       const email = await AsyncStorage.getItem('email');
-      const accountWithEmail = {
-        ...accountData,
-        email: email // Adiciona o email ao objeto da conta
-      };
+      const accountWithEmail = { ...accountData, email };
       
       const response = await api.post('/accounts', accountWithEmail);
       setAccounts(prev => [...prev, response.data]);
@@ -121,63 +143,55 @@ export const AccountsProvider = ({ children }) => {
   };
 
   const markAccountAsPaid = async (accountId) => {
-    try {
-      setLoading(true);
-      const account = accounts.find(a => a.id === accountId);
-      
-      if (!account) {
-        throw new Error('Conta não encontrada');
-      }
-      
-      // Verificar se está pagando antecipado
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const dueDate = new Date(account.vencimento);
-      dueDate.setHours(0, 0, 0, 0);
-      
-      const daysBeforeDue = Math.floor((dueDate - today) / (1000 * 60 * 60 * 24));
-      
-      // Gamificação - XP baseado no tempo de pagamento
-      if (daysBeforeDue >= 5) {
-        addXp(XP_EVENTS.PAY_EARLY);
-        unlockAchievement(ACHIEVEMENTS.EARLY_BIRD);
-      } else if (daysBeforeDue >= 0) {
-        addXp(XP_EVENTS.PAY_ON_TIME);
-      }
-      
-      // Verificar conquista de primeiro pagamento
-      const paidAccounts = accounts.filter(a => a.status === STATUS.PAID).length;
-      if (paidAccounts === 0) {
-        unlockAchievement(ACHIEVEMENTS.FIRST_BLOOD);
-      }
-      
-      const response = await api.patch(`/accounts/${accountId}`, { 
-        status: STATUS.PAID,
-        dataPagamento: new Date().toISOString().split('T')[0]
-      });
-      
-      // Atualizar lista de contas
-      const updatedAccounts = accounts.map(acc => 
-        acc.id === accountId ? { 
-          ...acc, 
+      try {
+        setLoading(true);
+        const account = accounts.find(a => a.id === accountId);
+        
+        if (!account || !account.vencimento) {
+          throw new Error('Conta ou data de vencimento não encontrada');
+        }
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const dueDate = new Date(`${account.vencimento}T00:00:00`);
+        
+        const daysBeforeDue = Math.floor((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysBeforeDue >= 5) {
+          addXp(XP_EVENTS.PAY_EARLY);
+          unlockAchievement(ACHIEVEMENTS.EARLY_BIRD);
+        } else if (daysBeforeDue >= 0) {
+          addXp(XP_EVENTS.PAY_ON_TIME);
+        }
+        
+        const paidAccounts = accounts.filter(a => a.status === STATUS.PAID).length;
+        if (paidAccounts === 0) {
+          unlockAchievement(ACHIEVEMENTS.FIRST_BLOOD);
+        }
+        
+        const paymentDateString = new Date().toISOString().split('T')[0];
+        const response = await api.patch(`/accounts/${accountId}`, { 
           status: STATUS.PAID,
-          dataPagamento: new Date().toISOString().split('T')[0]
-        } : acc
-      );
-      
-      setAccounts(updatedAccounts);
-      
-      // Verificar outras conquistas após pagamento
-      checkOnTimeStreak(updatedAccounts.filter(a => a.status === STATUS.PAID));
-      
-      return { success: true, data: response.data };
-    } catch (err) {
-      console.error('Erro ao marcar conta como paga:', err);
-      return { success: false, error: err.message };
-    } finally {
-      setLoading(false);
-    }
+          dataPagamento: paymentDateString
+        });
+        
+        const updatedAccounts = accounts.map(acc => 
+          acc.id === accountId ? { ...acc, status: STATUS.PAID, dataPagamento: paymentDateString } : acc
+        );
+        
+        setAccounts(updatedAccounts);
+        checkOnTimeStreak(updatedAccounts.filter(a => a.status === STATUS.PAID));
+
+        checkMonthlyPerfectAchievement(updatedAccounts);
+        
+        return { success: true, data: response.data };
+      } catch (err) {
+        console.error('Erro ao marcar conta como paga:', err);
+        return { success: false, error: err.message };
+      } finally {
+        setLoading(false);
+      }
   };
 
   const updateAccount = async (accountId, updatedData) => {
@@ -202,12 +216,8 @@ export const AccountsProvider = ({ children }) => {
     try {
       setLoading(true);
       await api.delete(`/accounts/${accountId}`);
-      
       setAccounts(prev => prev.filter(account => account.id !== accountId));
-      
-      // Gamificação - Penalidade por deletar conta
       addXp(XP_EVENTS.DELETE_ACCOUNT);
-      
       return { success: true };
     } catch (err) {
       console.error('Erro ao deletar conta:', err);
@@ -218,7 +228,11 @@ export const AccountsProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    fetchAccounts();
+    const loadData = async () => {
+      const storedEmail = await AsyncStorage.getItem('email');
+      fetchAccounts(storedEmail);
+    };
+    loadData();
   }, []);
 
   return (

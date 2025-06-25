@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { Button, Text } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
-import { useTheme } from "../../contexts/ThemeContext"; // importa do seu context
+import { useTheme } from "../../contexts/ThemeContext"; 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function Onboarding() {
   const navigation = useNavigation();
@@ -13,6 +14,10 @@ export default function Onboarding() {
   const titleColor = isDark ? "#f3f4f6" : "#222";
   const subtitleColor = isDark ? "#9ca3af" : "#666";
   const buttonCreateBorder = "#1e66fd";
+
+  useEffect(() => {
+    AsyncStorage.removeItem("email");
+  }, []);
 
   return (
     <View style={[styles.container, { backgroundColor }]}>

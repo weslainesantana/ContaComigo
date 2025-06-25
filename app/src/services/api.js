@@ -5,4 +5,11 @@ const api = axios.create({
   timeout: 5000,
 });
 
+export const gamificationApi = axios.create({
+  baseURL: 'https://684acea3165d05c5d35a68c6.mockapi.io',
+  timeout: 5000,
+});
+
+
 export default api;
+

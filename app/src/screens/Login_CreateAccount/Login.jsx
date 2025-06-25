@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigation } from "@react-navigation/native";
 import {
   View,
@@ -13,7 +13,9 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
-import { useTheme, toggleTheme } from '../../contexts/ThemeContext';
+import { useTheme } from '../../contexts/ThemeContext';
+// 1. Importar o hook do GameContext
+import { useGame } from '../../contexts/GameContext'; // Ajuste o caminho se necessário
 
 export default function TelaLogin() {
   const [email, setEmail] = useState('');
@@ -22,6 +24,14 @@ export default function TelaLogin() {
   const navigation = useNavigation();
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
+  
+  // 2. Pegar as funções de login e logout do contexto do jogo
+  const { loginUser, logoutUser } = useGame();
+
+  // Efeito que garante que qualquer sessão anterior seja limpa ao chegar na tela de login
+  useEffect(() => {
+    logoutUser();
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !senha) {
@@ -36,12 +46,18 @@ export default function TelaLogin() {
       const usuarios = response.data;
 
       const usuarioEncontrado = usuarios.find(
-        usuario => usuario.email === email && usuario.senha === senha
+        usuario => usuario.email === email.toLowerCase() && usuario.senha === senha
       );
 
       if (usuarioEncontrado) {
-        await AsyncStorage.removeItem('email');
-        await AsyncStorage.setItem('email', email);
+        // Salva o email no AsyncStorage para sessões futuras
+        await AsyncStorage.setItem('email', email.toLowerCase());
+
+        // 3. Avisar o GameProvider que o login foi feito
+        // Isso vai disparar o carregamento dos dados do jogo de forma controlada.
+        loginUser(email.toLowerCase());
+
+        // Navega para a tela principal
         navigation.replace("Main", { usuario: usuarioEncontrado });
       } else {
         Alert.alert('Erro', 'E-mail ou senha incorretos');
@@ -71,13 +87,7 @@ export default function TelaLogin() {
     >
       <TouchableOpacity
         onPress={toggleTheme}
-        style={{
-          position: 'absolute',
-          top: 45,
-          right: 20,
-          padding: 8,
-          zIndex: 10,
-        }}
+        style={styles.themeToggle}
       >
         <Text style={{ fontSize: 22 }}>
           {isDark ? '☀️' : '🌙'}
@@ -133,6 +143,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: 30,
+  },
+  themeToggle: {
+    position: 'absolute',
+    top: 45,
+    right: 20,
+    padding: 8,
+    zIndex: 10,
   },
   title: {
     fontSize: 28,
