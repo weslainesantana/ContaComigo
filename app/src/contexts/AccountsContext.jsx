@@ -16,6 +16,10 @@ export const AccountsProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { addXp, unlockAchievement } = useGame();
+  const [currentEmail, setCurrentEmail] = useState(null);
+  const clearAccounts = () => {
+    setAccounts([]);
+  };
 
   const fetchAccounts = async (email) => {
     if (!email) {
@@ -29,7 +33,7 @@ export const AccountsProvider = ({ children }) => {
       const filteredAccounts = response.data.filter(account => account.email === email);
       setAccounts(filteredAccounts);
       setError(null);
-      
+
       checkAchievements(filteredAccounts);
     } catch (err) {
       setError(err.message);
@@ -65,27 +69,27 @@ export const AccountsProvider = ({ children }) => {
 
   const checkAchievements = (accountsList) => {
     const paidAccounts = accountsList.filter(a => a.status === STATUS.PAID);
-    
+
     if (paidAccounts.length >= 1) {
       unlockAchievement(ACHIEVEMENTS.FIRST_BLOOD);
     }
-    
+
     if (accountsList.length >= 10) {
       unlockAchievement(ACHIEVEMENTS.ACCOUNT_MANAGER);
     }
-    
+
     checkOnTimeStreak(paidAccounts);
-    
+
     const earlyPayments = paidAccounts.filter(account => {
       if (!account.dataPagamento || !account.vencimento) return false;
-      
+
       const paymentDate = new Date(`${account.dataPagamento}T00:00:00`);
       const dueDate = new Date(`${account.vencimento}T00:00:00`);
       const daysBefore = (dueDate.getTime() - paymentDate.getTime()) / (1000 * 60 * 60 * 24);
-      
+
       return daysBefore >= 5;
     });
-    
+
     if (earlyPayments.length > 0) {
       unlockAchievement(ACHIEVEMENTS.EARLY_BIRD);
     }
@@ -94,25 +98,25 @@ export const AccountsProvider = ({ children }) => {
   const checkOnTimeStreak = (paidAccounts) => {
     const sortedAccounts = [...paidAccounts]
       .sort((a, b) => new Date(b.dataPagamento) - new Date(a.dataPagamento));
-    
+
     let streak = 0;
     for (const account of sortedAccounts) {
       if (!account.dataPagamento || !account.vencimento) continue;
-      
+
       const paymentDate = new Date(`${account.dataPagamento}T00:00:00`);
       const dueDate = new Date(`${account.vencimento}T00:00:00`);
-      
+
       if (paymentDate <= dueDate) {
         streak++;
       } else {
         break;
       }
     }
-    
+
     if (streak >= 3) {
       unlockAchievement(ACHIEVEMENTS.ON_TIME_STREAK_3);
     }
-    
+
     if (streak >= 10) {
       unlockAchievement(ACHIEVEMENTS.ON_TIME_STREAK_10);
     }
@@ -123,16 +127,16 @@ export const AccountsProvider = ({ children }) => {
       setLoading(true);
       const email = await AsyncStorage.getItem('email');
       const accountWithEmail = { ...accountData, email };
-      
+
       const response = await api.post('/accounts', accountWithEmail);
       setAccounts(prev => [...prev, response.data]);
-      
+
       addXp(XP_EVENTS.ADD_ACCOUNT);
-      
+
       if (accounts.length + 1 >= 10) {
         unlockAchievement(ACHIEVEMENTS.ACCOUNT_MANAGER);
       }
-      
+
       return { success: true, data: response.data };
     } catch (err) {
       console.error('Erro ao adicionar conta:', err);
@@ -143,66 +147,66 @@ export const AccountsProvider = ({ children }) => {
   };
 
   const markAccountAsPaid = async (accountId) => {
-      try {
-        setLoading(true);
-        const account = accounts.find(a => a.id === accountId);
-        
-        if (!account || !account.vencimento) {
-          throw new Error('Conta ou data de vencimento não encontrada');
-        }
-        
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const dueDate = new Date(`${account.vencimento}T00:00:00`);
-        
-        const daysBeforeDue = Math.floor((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        
-        if (daysBeforeDue >= 5) {
-          addXp(XP_EVENTS.PAY_EARLY);
-          unlockAchievement(ACHIEVEMENTS.EARLY_BIRD);
-        } else if (daysBeforeDue >= 0) {
-          addXp(XP_EVENTS.PAY_ON_TIME);
-        }
-        
-        const paidAccounts = accounts.filter(a => a.status === STATUS.PAID).length;
-        if (paidAccounts === 0) {
-          unlockAchievement(ACHIEVEMENTS.FIRST_BLOOD);
-        }
-        
-        const paymentDateString = new Date().toISOString().split('T')[0];
-        const response = await api.patch(`/accounts/${accountId}`, { 
-          status: STATUS.PAID,
-          dataPagamento: paymentDateString
-        });
-        
-        const updatedAccounts = accounts.map(acc => 
-          acc.id === accountId ? { ...acc, status: STATUS.PAID, dataPagamento: paymentDateString } : acc
-        );
-        
-        setAccounts(updatedAccounts);
-        checkOnTimeStreak(updatedAccounts.filter(a => a.status === STATUS.PAID));
+    try {
+      setLoading(true);
+      const account = accounts.find(a => a.id === accountId);
 
-        checkMonthlyPerfectAchievement(updatedAccounts);
-        
-        return { success: true, data: response.data };
-      } catch (err) {
-        console.error('Erro ao marcar conta como paga:', err);
-        return { success: false, error: err.message };
-      } finally {
-        setLoading(false);
+      if (!account || !account.vencimento) {
+        throw new Error('Conta ou data de vencimento não encontrada');
       }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const dueDate = new Date(`${account.vencimento}T00:00:00`);
+
+      const daysBeforeDue = Math.floor((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (daysBeforeDue >= 5) {
+        addXp(XP_EVENTS.PAY_EARLY);
+        unlockAchievement(ACHIEVEMENTS.EARLY_BIRD);
+      } else if (daysBeforeDue >= 0) {
+        addXp(XP_EVENTS.PAY_ON_TIME);
+      }
+
+      const paidAccounts = accounts.filter(a => a.status === STATUS.PAID).length;
+      if (paidAccounts === 0) {
+        unlockAchievement(ACHIEVEMENTS.FIRST_BLOOD);
+      }
+
+      const paymentDateString = new Date().toISOString().split('T')[0];
+      const response = await api.patch(`/accounts/${accountId}`, {
+        status: STATUS.PAID,
+        dataPagamento: paymentDateString
+      });
+
+      const updatedAccounts = accounts.map(acc =>
+        acc.id === accountId ? { ...acc, status: STATUS.PAID, dataPagamento: paymentDateString } : acc
+      );
+
+      setAccounts(updatedAccounts);
+      checkOnTimeStreak(updatedAccounts.filter(a => a.status === STATUS.PAID));
+
+      checkMonthlyPerfectAchievement(updatedAccounts);
+
+      return { success: true, data: response.data };
+    } catch (err) {
+      console.error('Erro ao marcar conta como paga:', err);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
   };
 
   const updateAccount = async (accountId, updatedData) => {
     try {
       setLoading(true);
       const response = await api.put(`/accounts/${accountId}`, updatedData);
-      
-      setAccounts(prev => prev.map(account => 
+
+      setAccounts(prev => prev.map(account =>
         account.id === accountId ? { ...account, ...updatedData } : account
       ));
-      
+
       return { success: true, data: response.data };
     } catch (err) {
       console.error('Erro ao atualizar conta:', err);
@@ -227,25 +231,35 @@ export const AccountsProvider = ({ children }) => {
     }
   };
 
+  // Primeiro carrega o email atual ao montar o app
   useEffect(() => {
-    const loadData = async () => {
+    const loadEmail = async () => {
       const storedEmail = await AsyncStorage.getItem('email');
-      fetchAccounts(storedEmail);
+      setCurrentEmail(storedEmail);
     };
-    loadData();
+    loadEmail();
   }, []);
 
+  // Toda vez que o email mudar (ex: logout + novo login), refaz o fetch
+  useEffect(() => {
+    if (currentEmail) {
+      fetchAccounts(currentEmail);
+    }
+  }, [currentEmail]);
+
+
   return (
-    <AccountsContext.Provider 
-      value={{ 
-        accounts, 
-        loading, 
-        error, 
-        fetchAccounts, 
+    <AccountsContext.Provider
+      value={{
+        accounts,
+        loading,
+        error,
+        fetchAccounts,
         addAccount,
         markAccountAsPaid,
         updateAccount,
-        deleteAccount
+        deleteAccount,
+        clearAccounts
       }}
     >
       {children}

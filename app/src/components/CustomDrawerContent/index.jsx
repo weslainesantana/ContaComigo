@@ -1,26 +1,32 @@
 import { DrawerContentScrollView } from "@react-navigation/drawer";
 import { Text, View, TouchableOpacity, Alert } from "react-native";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useAccounts } from "../../contexts/AccountsContext";
 
 export function CustomDrawerContent({ navigation }) {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
+  const { clearAccounts } = useAccounts();
 
-  const handleLogout = () => {
-    Alert.alert("Sair", "Deseja realmente sair da conta?", [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Sair",
-        style: "destructive",
-        onPress: () => {
+const handleLogout = () => {
+  Alert.alert("Sair", "Deseja realmente sair da conta?", [
+    { text: "Cancelar", style: "cancel" },
+    {
+      text: "Sair",
+      style: "destructive",
+      onPress: () => {
+        clearAccounts();
+
+        setTimeout(() => {
           navigation.reset({
             index: 0,
-            routes: [{ name: "Onboarding" }],
+            routes: [{ name: 'Onboarding' }],
           });
-        },
+        }, 100);
       },
-    ]);
-  };
+    },
+  ]);
+};
 
   return (
     <DrawerContentScrollView style={{ padding: 16 }}>

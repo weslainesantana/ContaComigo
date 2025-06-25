@@ -1,17 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, Dimensions, StyleSheet, ScrollView } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
-import api from '../../services/api';
 import { useAccounts } from '../../contexts/AccountsContext';
 import { ActivityIndicator } from 'react-native-paper';
 import { GameStatus } from '../../components/GameStatus';
 import { useTheme } from '../../contexts/ThemeContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 
 export function Home() {
-  const [contas, setContas] = useState([]);
-  const { accounts, loading } = useAccounts();
+  const [chartData, setChartData] = useState([]);
+  const { accounts, loading, fetchAccounts } = useAccounts();
   const { theme } = useTheme();
-
   const isDark = theme === 'dark';
 
   const themeColors = {
@@ -22,11 +22,53 @@ export function Home() {
     border: isDark ? '#374151' : '#ddd',
   };
 
+  // 🔁 Garante que os dados são atualizados sempre que a tela for exibida
+  useFocusEffect(
+    useCallback(() => {
+      const fetchData = async () => {
+        const email = await AsyncStorage.getItem('email');
+        if (email) {
+          await fetchAccounts(email);
+        }
+      };
+      fetchData();
+    }, [])
+  );
+
+  // 🎯 Atualiza os dados do gráfico sempre que mudar contas ou loading
   useEffect(() => {
-    api.get('/accounts')
-      .then((res) => setContas(res.data))
-      .catch((err) => console.error('Erro ao buscar contas:', err));
-  }, []);
+    if (!loading && accounts.length > 0) {
+      const contasPagar = accounts.filter((c) => c.status === 0).length;
+      const contasAtrasadas = accounts.filter((c) => c.status === 1).length;
+      const contasPagas = accounts.filter((c) => c.status === 2).length;
+
+      setChartData([
+        {
+          name: 'Pagar',
+          population: contasPagar,
+          color: '#facc15',
+          legendFontColor: themeColors.text,
+          legendFontSize: 14,
+        },
+        {
+          name: 'Atrasadas',
+          population: contasAtrasadas,
+          color: '#f43f5e',
+          legendFontColor: themeColors.text,
+          legendFontSize: 14,
+        },
+        {
+          name: 'Pagas',
+          population: contasPagas,
+          color: '#3b82f6',
+          legendFontColor: themeColors.text,
+          legendFontSize: 14,
+        },
+      ]);
+    } else {
+      setChartData([]); // limpa gráfico se não há contas
+    }
+  }, [accounts, loading]);
 
   if (loading) {
     return (
@@ -41,48 +83,32 @@ export function Home() {
   const contasAtrasadas = accounts.filter((c) => c.status === 1).length;
   const contasPagas = accounts.filter((c) => c.status === 2).length;
 
-  const chartData = [
-    {
-      name: 'Pagar',
-      population: contasPagar,
-      color: '#facc15',
-      legendFontColor: themeColors.text,
-      legendFontSize: 14,
-    },
-    {
-      name: 'Atrasadas',
-      population: contasAtrasadas,
-      color: '#f43f5e',
-      legendFontColor: themeColors.text,
-      legendFontSize: 14,
-    },
-    {
-      name: 'Pagas',
-      population: contasPagas,
-      color: '#3b82f6',
-      legendFontColor: themeColors.text,
-      legendFontSize: 14,
-    },
-  ];
-
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <GameStatus />
         <View style={styles.content}>
           <Text style={[styles.title, { color: themeColors.label }]}>Resumo geral</Text>
-          <PieChart
-            data={chartData}
-            width={Dimensions.get('window').width - 60}
-            height={200}
-            chartConfig={{ color: () => themeColors.text }}
-            accessor="population"
-            backgroundColor="transparent"
-            paddingLeft="20"
-            center={[5, 0]}
-            absolute
-            style={styles.chart}
-          />
+
+          {chartData.length > 0 ? (
+            <PieChart
+              data={chartData}
+              width={Dimensions.get('window').width - 60}
+              height={200}
+              chartConfig={{ color: () => themeColors.text }}
+              accessor="population"
+              backgroundColor="transparent"
+              paddingLeft="20"
+              center={[5, 0]}
+              absolute
+              style={styles.chart}
+            />
+          ) : (
+            <Text style={{ color: themeColors.text, marginBottom: 30 }}>
+              Nenhuma conta para exibir no gráfico.
+            </Text>
+          )}
+
           <View style={styles.boxContainer}>
             <View style={[styles.card, styles.cardPagar, { backgroundColor: themeColors.card }]}>
               <Text style={[styles.label, { color: themeColors.label }]}>Pagar</Text>
